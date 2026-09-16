@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#090a09" />
+  <meta name="referrer" content="no-referrer" />
+  <title>Fiesta V2 · Móvil</title>
+  <link rel="stylesheet" href="./styles.css?v=1" />
+  <link rel="stylesheet" href="./social-overrides.css?v=4" />
+  <link rel="stylesheet" href="./panel.css?v=1" />
+  <link rel="stylesheet" href="./crew.css?v=1" />
+  <link rel="stylesheet" href="./profile-photos.css?v=22" />
+</head>
+<body>
+  <main class="mobile-app" id="app">
+    <section class="screen is-active" data-screen="room" aria-labelledby="room-title">
+      <header class="ticket-header">
+        <div><h1 id="room-title">MARMarela ·<br>Grande</h1><p><b id="attendee-count">184</b> dentro · <b id="crew-count">36</b> crews</p></div>
+        <div class="countdown"><span>EMPIEZA EN</span><strong id="countdown">07:42</strong></div>
+      </header>
+      <nav class="section-tabs" aria-label="Secciones de la sala"><button class="is-active" data-screen-target="room">La sala</button><button data-screen-target="crew">Mi crew</button></nav>
+      <section class="feed-section"><div class="feed-title violet"><h2>Gente que te puede sonar</h2><span>Sin filtros · por afinidad</span></div><div class="profile-mosaic" id="profile-mosaic"></div><button class="more-button" id="show-all">Ver a más gente</button></section>
+      <section class="feed-section"><div class="feed-title orange"><h2>Acaban de entrar</h2><span>Gente recién llegada</span></div><div class="arrival-row" id="arrival-row"></div></section>
+      <section class="feed-section"><div class="feed-title acid"><h2>Planes para hoy</h2><span>Entra en uno · ve quién está</span></div><div class="plan-groups" id="plan-groups"></div></section>
+      <section class="feed-section groups-section"><div class="feed-title violet"><h2>Crews en movimiento</h2><span>Una capa extra</span></div><p class="groups-helper">Se forman al invitar a tu gente. Puedes ir a un plan solo o llevar tu crew.</p><div class="group-row"><div class="group-track" id="group-track"></div></div></section>
+    </section>
+
+    <section class="screen" data-screen="event" aria-labelledby="event-title">
+      <header class="page-header"><p>ESTA NOCHE</p><h1 id="event-title">El evento</h1></header>
+      <article class="event-card"><div class="event-poster"><span>GRANDE</span></div><div><p class="eyebrow">MARMarela</p><h2>Viernes de estreno</h2><p>23:30 · Sala principal, Dome y Terraza</p></div></article>
+      <section class="info-list"><article><div><strong>Cómo funciona</strong><p>Elige tu onda, entra en la sala y conoce gente antes de salir.</p></div></article><article><div><strong>Tu acceso</strong><p>El QR está en Avisos y solo vale para tu entrada.</p></div></article><article><div><strong>La música</strong><p>Cada sala agrupa gente por la música que le apetece escuchar.</p></div></article></section>
+    </section>
+
+    <section class="screen" data-screen="messages" aria-labelledby="messages-title">
+      <header class="page-header"><p>CONVERSACIONES</p><h1 id="messages-title">Mensajes</h1></header>
+      <div class="messages-list" id="messages-list"></div>
+    </section>
+
+    <section class="screen panel-screen" data-screen="notices" aria-labelledby="notices-title">
+      <header class="page-header"><p>AVISOS</p><h1 id="notices-title">Tu noche se mueve</h1><span>Solo actividad de esta fiesta</span></header>
+      <article class="profile-views-card"><div><span id="profile-view-count">12</span><strong>personas han visto tu perfil</strong><p>El dato es anónimo para todos: sirve para saber que estás en el radar, no para señalar a nadie.</p></div><i>◉</i></article>
+      <section class="notice-section"><div class="panel-section-title"><h2>Te han saludado</h2><span>Responde cuando quieras</span></div><div class="activity-list" id="greetings-list"></div></section>
+      <section class="notice-section"><div class="panel-section-title"><h2>Invitaciones</h2><span>Planes y rondas</span></div><div class="activity-list" id="invitations-list"></div></section>
+      <section class="notice-section"><div class="panel-section-title"><h2>Tu acceso</h2><span>Para la entrada</span></div><article class="access-card"><div class="fake-qr" aria-label="Código QR de demo"></div><div><strong>QR de tu entrada</strong><p>Guárdalo para cuando llegues. No se comparte ni aparece en tu perfil.</p></div></article></section>
+      <section class="notice-section"><div class="panel-section-title"><h2>Antes de entrar</h2><span>Recordatorio</span></div><article class="memory-notice"><strong>Una hora antes te avisaremos</strong><p>Tu perfil y preferencias se reutilizan en próximas fiestas. Chats, fotos de la previa e invitaciones caducan al terminar esta.</p></article></section>
+    </section>
+
+    <section class="screen panel-screen crew-screen" data-screen="crew" aria-labelledby="crew-title">
+      <header class="page-header crew-heading"><div><p>TU GENTE · VUESTRA NOCHE</p><h1 id="crew-title">Mi crew</h1></div><button class="crew-back" type="button" data-screen-target="room">Volver a la sala ↗</button></header>
+      <p class="crew-status-line" id="crew-status-line">Dale nombre a vuestra noche</p>
+      <section class="crew-builder-card">
+        <button class="crew-photo-picker" id="edit-crew-photo" type="button" aria-label="Añadir o cambiar foto de grupo"></button>
+        <input id="crew-photo-input" type="file" accept="image/png,image/jpeg,image/webp" hidden>
+        <div class="crew-fields">
+          <label>Nombre de la crew<input id="crew-name" name="name" maxlength="32" placeholder="Las que llegan tarde" /></label>
+          <label>Una frase que os defina<textarea id="crew-phrase" name="phrase" maxlength="48" rows="2" placeholder="La última y nos vamos"></textarea></label>
+          <label>¿Qué os apetece hoy?<select id="crew-plan" name="plan"><option value="">Lo decidimos luego</option><option value="Bailar">Bailar</option><option value="Charlar">Charlar</option><option value="Previa">Previa</option><option value="Improvisar">Improvisar</option></select></label>
+          <small>El plan sale en vuestra portada. Cada uno puede explorar otros planes.</small>
+        </div>
+        <button class="save-crew" id="save-crew" type="button">Crear mi crew</button>
+      </section>
+      <section class="notice-section"><div class="panel-section-title"><h2>Vuestra gente</h2><span id="crew-member-count">Tú + 0</span></div><div class="crew-member-stack" id="crew-members"></div><p class="invite-empty-hint" id="crew-pending-count">Invita a alguien para empezar a compartir la noche.</p><button class="copy-invite-link" id="copy-crew-link">Compartir enlace de la crew ↗</button></section>
+      <section class="notice-section invite-search"><div class="panel-section-title"><h2>Invita a tu gente</h2><span>En esta fiesta</span></div><label class="search-box"><span class="crew-search-label">Busca entre los asistentes</span><input id="crew-search" placeholder="Nombre o crew" autocomplete="off"></label><div class="invite-results" id="invite-results"></div></section>
+    </section>
+
+    <section class="screen profile-screen" data-screen="profile" aria-labelledby="profile-title">
+      <header class="page-header page-header-action"><div><p>ASÍ TE VEN</p><h1 id="profile-title">Mi perfil</h1></div><button id="edit-profile" type="button">Editar</button></header>
+      <article class="profile-card" id="profile-preview">
+        <div class="profile-photo-grid" id="my-photo-grid" aria-label="Tus fotos de perfil"></div>
+        <button class="add-profile-photo" id="add-profile-photo" type="button">Añadir foto</button>
+        <div class="profile-card-copy"><h2 id="my-profile-name"></h2><div class="profile-song-line"><span>CANCIÓN DE FIESTA</span><strong id="my-profile-song">Añade tu temazo</strong></div><div class="profile-quick-facts"><div><span>PLAN DE HOY</span><strong id="my-profile-plan">Elige tu plan</strong></div><div><span>VIENES</span><strong id="my-profile-arrival">Elige cómo vienes</strong></div></div><div class="profile-genre-line"><span>EN LA FIESTA SOY</span><strong class="profile-role-value" id="my-profile-role">Elige tu papel</strong></div><div class="profile-crew-line"><span>MI CREW</span><strong id="my-profile-crew">Todavía no tienes una</strong></div></div>
+        <input id="my-photo-input" type="file" accept="image/png,image/jpeg,image/webp" capture="user" multiple hidden>
+      </article>
+      <form class="profile-fast-form" id="profile-fast-form" hidden>
+        <p class="profile-form-intro">Una canción y 3 toques para que la sala te junte con tu plan de hoy.</p>
+        <label>Nombre<input id="profile-name-input" name="name" maxlength="32" autocomplete="name" required></label>
+        <label>Móvil o email <small>Opcional · privado · sirve para recuperar tu perfil</small><input id="profile-contact-input" name="contact" maxlength="120" autocomplete="email" inputmode="email" placeholder="tu@email.com o +34 600 000 000"></label>
+        <label>Canción de fiesta <small>Opcional · la que pondrías ahora mismo</small><input id="profile-song-input" name="song" maxlength="64" placeholder="Ej. Fiebre"></label>
+        <fieldset><legend>1 · ¿Qué plan te representa más?</legend><div class="profile-choice-grid" id="profile-plan-picker"></div></fieldset>
+        <fieldset><legend>2 · ¿Te apetece conocer gente?</legend><div class="profile-choice-grid" id="profile-arrival-picker"></div><small>Tu crew se muestra automáticamente cuando perteneces a una.</small></fieldset>
+        <fieldset><legend>3 · ¿Qué tipo de persona eres en una fiesta?</legend><div class="profile-choice-grid" id="profile-role-picker"></div></fieldset>
+        <div class="profile-form-actions"><button id="cancel-profile-edit" type="button">Cancelar</button><button type="submit">Guardar cambios</button></div>
+      </form>
+      <article class="profile-memory"><strong>Tu perfil entre fiestas</strong><p>Guardamos tu perfil y preferencias para entrar rápido por QR. Conservamos solo señales resumidas de coincidencias; se eliminan chats, fotos de previa e invitaciones cuando acaba cada fiesta.</p><label><input id="profile-memory-consent" type="checkbox" checked> Quiero que mi perfil se reutilice en próximas fiestas.</label></article>
+      <button class="save-profile" id="save-profile"><span><b>Guardar mi perfil</b><small>Listo para tu próxima fiesta</small></span></button>
+    </section>
+
+    <section class="screen attendee-profile" data-screen="person" aria-labelledby="person-name">
+      <header class="attendee-nav"><button id="person-back" type="button">Volver</button><span>GENTE DE ESTA NOCHE</span></header>
+      <div class="attendee-photo" id="person-photos"></div>
+      <div class="attendee-details">
+        <header class="attendee-identity"><h1 id="person-name" tabindex="-1"></h1><span id="person-age"></span></header>
+        <p class="attendee-bio" id="person-bio"></p>
+        <div class="attendee-tags" id="person-chips"></div>
+        <p class="attendee-connection" id="person-connection"></p>
+        <section class="attendee-social" aria-label="Interactuar con esta persona">
+          <div class="attendee-actions">
+            <button type="button" data-action="hello"><span class="attendee-action-icon"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M11 17V9a2 2 0 0 1 4 0v6-9a2 2 0 0 1 4 0v9-6a2 2 0 0 1 4 0v8-4a2 2 0 0 1 4 0v8a9 9 0 0 1-16 5l-5-7a2 2 0 0 1 3-3l2 2"/><path d="M5 5 3 3M4 10H1M26 5l2-2"/></svg></span><span>Saludar</span></button>
+            <button type="button" data-action="friendly" aria-label="Invitar a un chupito amistoso"><span class="attendee-action-icon friendly"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M8 8h16l-3 19H11L8 8Z"/><path d="M9 13h14M13 23h6M16 2v2M5 4l2 2M27 4l-2 2"/></svg></span><span>Chupito<br>amistoso</span></button>
+            <button type="button" data-action="icebreaker" aria-label="Invitar a un chupito rompehielos"><span class="attendee-action-icon icebreaker"><svg viewBox="0 0 32 32" aria-hidden="true"><g transform="rotate(-14 10 19)"><path d="M4 10h11l-2 17H6L4 10ZM5 15h9"/></g><g transform="rotate(14 23 19)"><path d="M17 10h11l-2 17h-7l-2-17ZM18 15h9"/></g><path d="m17 2-3 4h4l-3 4"/></svg></span><span>Chupito<br>rompehielos</span></button>
+          </div>
+          <p class="attendee-hint" id="person-action-hint">Un saludo para empezar. Habláis si os saludáis los dos.</p>
+          <section class="attendee-invitation" id="person-invitation" hidden aria-labelledby="invitation-title">
+            <strong id="invitation-title"></strong><p id="invitation-description"></p>
+            <div><button type="button" id="cancel-invitation">Ahora no</button><button type="button" id="confirm-invitation">Enviar invitación</button></div>
+          </section>
+          <p class="attendee-feedback" id="person-feedback" role="status" aria-live="polite" hidden></p>
+        </section>
+        <section class="attendee-crew"><div id="profile-crew-status"></div><div class="attendee-crew-actions"><button type="button" id="person-see-crew">Ver su crew</button><button type="button" data-action="invite-crew">Invitar a mi crew</button></div></section>
+      </div>
+    </section>
+
+    <section class="screen attendee-profile plan-profile" data-screen="plan" aria-labelledby="plan-title">
+      <header class="attendee-nav"><button id="plan-back" type="button">Volver</button><span>PLANES DE ESTA NOCHE</span></header>
+      <div class="plan-art" id="plan-cover" aria-label="Arte del plan"><span id="plan-art-kicker"></span><strong id="plan-art-title"></strong><small id="plan-art-note"></small><b id="plan-art-symbol"></b></div>
+      <div class="attendee-details plan-details">
+        <header class="attendee-identity"><h1 id="plan-title"></h1><span id="plan-count"></span></header>
+        <p class="attendee-bio" id="plan-description"></p>
+        <div class="attendee-tags" id="plan-tags"></div>
+        <p class="attendee-connection" id="plan-connection"></p>
+        <section class="plan-people-section" aria-labelledby="plan-people-title"><div class="plan-people-heading"><h2 id="plan-people-title">Gente dentro</h2><span>Toca para ver su perfil</span></div><div class="plan-members" id="plan-members"></div></section>
+        <button class="plan-entry-action" id="join-plan-action" type="button"></button>
+        <button class="plan-crew-action is-hidden" id="bring-crew-action" type="button"></button>
+      </div>
+    </section>
+
+    <nav class="bottom-nav" aria-label="Navegación principal">
+      <button class="is-active" data-screen-target="room"><span>La sala</span></button>
+      <button data-screen-target="event"><span>Evento</span></button>
+      <button data-screen-target="messages"><span>Mensajes</span></button>
+      <button data-screen-target="notices"><span>Avisos</span></button>
+      <button data-screen-target="profile"><span>Mi perfil</span></button>
+    </nav>
+  </main>
+
+
+  <div class="sheet-backdrop is-hidden" id="group-sheet"><section class="sheet group-sheet" role="dialog" aria-modal="true" aria-labelledby="group-title"><button class="close-sheet" data-close="group-sheet">×</button><div class="group-art" id="group-art"><span id="group-art-kicker"></span><strong id="group-art-title"></strong><b id="group-art-symbol"></b></div><div class="group-content"><p class="eyebrow" id="group-kicker">GRUPO ABIERTO</p><h2 id="group-title"></h2><p class="group-phrase" id="group-phrase"></p><div class="group-members" id="group-members"></div><button class="group-join-button" id="group-join-button" type="button">Pedir entrar</button><form class="group-request-form" id="group-request-form" hidden><p class="group-entry-mode" id="group-entry-mode"></p><input type="hidden" id="group-request-mode" value="solo"><label>Mensaje para la crew<textarea id="group-request-message" maxlength="180" placeholder="Ej. Me apetece conoceros, ¿me uno?"></textarea></label><button type="submit">Enviar solicitud</button></form><button class="group-chat-button" id="group-chat-button" type="button" hidden>Abrir chat del grupo</button><p class="group-note" id="group-note">Toca una persona para abrir su perfil.</p></div></section></div>
+
+  <div class="sheet-backdrop is-hidden" id="chat-sheet"><section class="sheet chat-sheet" role="dialog" aria-modal="true" aria-labelledby="chat-title"><button class="close-sheet" data-close="chat-sheet">×</button><p class="eyebrow" id="chat-label">SALUDO DEVUELTO</p><h2 id="chat-title">Conversación</h2><div class="chat-log" id="chat-log"></div><form id="chat-form"><input name="message" maxlength="400" placeholder="Di algo sobre la fiesta…" required><button>Enviar</button></form></section></div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script src="./data.js?v=4"></script>
+  <script src="./app.js?v=18"></script>
+</body>
+</html>
