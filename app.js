@@ -13,23 +13,30 @@ const planMeta = {
   Bailar:{slug:'bailar',kicker:'PISTA ABIERTA',short:'RITMO',note:'Muévete, canta y encuentra tu siguiente canción.',description:'Un plan para entrar en calor sin pensarlo demasiado. Gente que quiere bailar y dejarse llevar por la pista.',tags:['Pista','Ritmo','Sin parar'],symbol:'✦'},
   Charlar:{slug:'charlar',kicker:'TERRAZA',short:'HABLAR',note:'Una conversación puede ser el mejor plan.',description:'Para quienes prefieren una copa tranquila, buenas historias y conocer a alguien sin gritar por encima de la música.',tags:['Terraza','Copas','Historias'],symbol:'◌'},
   Previa:{slug:'previa',kicker:'ANTES DE SALIR',short:'PREVIA',note:'Empieza suave. La noche ya decidirá.',description:'El punto de encuentro para arrancar la noche, compartir canciones y decidir juntos hacia dónde seguir.',tags:['Calentar','Playlist','Primeras risas'],symbol:'◒'},
-  Improvisar:{slug:'improvisar',kicker:'SIN GUIÓN',short:'LIBRE',note:'Cruza la sala y sigue lo que apetezca.',description:'No hace falta traer un plan cerrado. Entra, mira quién está y elige el siguiente paso sobre la marcha.',tags:['Libre','Descubrir','Ahora'],symbol:'↗'}
+  Improvisar:{slug:'improvisar',kicker:'SIN GUIÓN',short:'LIBRE',note:'Mira quién va y sigue lo que apetezca.',description:'No hace falta traer un plan cerrado. Apúntate, mira quién va y elige el siguiente paso sobre la marcha.',tags:['Libre','Descubrir','Ahora'],symbol:'~'}
 };
 const crewCoverThemes = ['crew-cover-citrus','crew-cover-violet','crew-cover-sunset','crew-cover-mint'];
 const crewFallbackPhotos = ['photo-1529156069898-49953e39b3ac','photo-1511632765486-a01980e01a18','photo-1527529482837-4698179dc6ce','photo-1506869640319-fe1a24fd76dc'];
 let showAll = false;
 let toastTimer;
+let crewScrollFrame;
+let crewScrollResumeTimer;
 let renderedGroups = [];
 let profileReturn = {screen:'room',scroll:0,focus:null};
 let planReturn = {screen:'room',scroll:0};
+let chatReturnScreen = 'messages';
+let upcomingReturnScreen = 'event';
 let activePerson = null;
+let activeUpcomingEvent = null;
 let pendingDrink = null;
 let photoSlot = null;
 const sentDrinks = new Set();
 const crewRequests = new Set();
+const connectionRequests = new Set();
 let storedProfile = null;
 try { storedProfile = JSON.parse(localStorage.getItem(profileStorageKey) || 'null'); } catch {}
-const state = { profileViews:12, greetings:new Set(), messages:[...data.messages], activeChat:null, activeGroupChat:null, joinedGroups:new Set(), groupRequests:new Map(), groupChats:{}, myPhotos:Array.isArray(storedProfile?.photos)?storedProfile.photos.slice(0,3):[], profile:{...defaultProfile,...storedProfile?.profile}, receivedGreetings:[{personId:'lucia',time:'Ahora'},{personId:'dani',time:'8 min'}], invitations:[{personId:'zoe',type:'crew',copy:'Te ha invitado a unirte a Terraza abierta'},{personId:'pau',type:'round',copy:'Ha propuesto una ronda para su crew'}], crew:{name:'',phrase:'',members:[],saved:false,plan:'',photo:null}, crewQuery:'' };
+const savedCircle=Array.isArray(storedProfile?.circle)?storedProfile.circle:data.defaultCircleIds;
+const state = { hasTicket:true, attendanceVisible:Boolean(storedProfile?.attendanceVisible), profileViews:12, greetings:new Set(), messages:[...data.messages], activeChat:null, activeGroupChat:null, joinedGroups:new Set(), groupRequests:new Map(), groupChats:{}, circleIds:new Set(savedCircle), introductions:Array.isArray(storedProfile?.introductions)?storedProfile.introductions:[], interestedEvents:new Set(Array.isArray(storedProfile?.interestedEvents)?storedProfile.interestedEvents:[]), myPhotos:Array.isArray(storedProfile?.photos)?storedProfile.photos.slice(0,3):[], profile:{...defaultProfile,...storedProfile?.profile}, receivedGreetings:[{personId:'lucia',time:'Ahora'},{personId:'dani',time:'8 min'}], receivedDrinks:[{personId:'sara',kind:'friendly',time:'12 min'},{personId:'nico',kind:'icebreaker',time:'18 min'}], invitations:[{personId:'zoe',type:'crew',copy:'Te ha invitado a unirte a Terraza abierta'},{personId:'pau',type:'round',copy:'Ha propuesto una ronda para su crew'}], crew:{name:'',phrase:'',members:[],saved:false,plan:'',photo:null}, crewQuery:'' };
 if(!profileOptions.arrival.includes(state.profile.arrival))state.profile.arrival=state.profile.arrival==='Con ganas de conocer gente'?'Conocer gente':'A mi ritmo';
 const encounterMemory = new Map([
   ['lucia',{times:2,last:'MARMarela en abril',greeted:true}],
@@ -45,7 +52,7 @@ function showToast(message) {
 }
 function persistProfile() {
   try {
-    localStorage.setItem(profileStorageKey, JSON.stringify({profile:state.profile,photos:state.myPhotos}));
+    localStorage.setItem(profileStorageKey, JSON.stringify({profile:state.profile,photos:state.myPhotos,circle:[...state.circleIds],attendanceVisible:state.attendanceVisible,introductions:state.introductions,interestedEvents:[...state.interestedEvents]}));
   } catch {
     showToast('No hay espacio suficiente para guardar más fotos.');
   }
@@ -121,6 +128,37 @@ function crewFallbackPhoto(group) {
   const score=[...source].reduce((total,char)=>total+char.charCodeAt(0),0);
   return crewFallbackPhotos[score%crewFallbackPhotos.length];
 }
+function setupCrewScroller() {
+  const row=$('.group-row');
+  const track=$('#group-track');
+  if(!row||!track)return;
+  cancelAnimationFrame(crewScrollFrame);
+  clearTimeout(crewScrollResumeTimer);
+  let touching=false;
+  let previousTime=performance.now();
+  const reducedMotion=window.matchMedia('(prefers-reduced-motion: reduce)');
+  const loop=()=>track.scrollWidth/2;
+  const normalize=()=>{
+    const loopWidth=loop();
+    if(!loopWidth)return;
+    if(row.scrollLeft>=loopWidth)row.scrollLeft-=loopWidth;
+  };
+  const pause=()=>{touching=true;row.classList.add('is-touching');clearTimeout(crewScrollResumeTimer);};
+  const resume=()=>{clearTimeout(crewScrollResumeTimer);crewScrollResumeTimer=setTimeout(()=>{touching=false;row.classList.remove('is-touching');},900);};
+  row.onpointerdown=pause;
+  row.onpointerup=resume;
+  row.onpointercancel=resume;
+  row.onfocusin=pause;
+  row.onfocusout=resume;
+  const advance=now=>{
+    const elapsed=Math.min(now-previousTime,40);
+    if(!touching&&!reducedMotion.matches&&row.closest('.screen')?.classList.contains('is-active'))row.scrollLeft+=elapsed*.018;
+    normalize();
+    previousTime=now;
+    crewScrollFrame=requestAnimationFrame(advance);
+  };
+  crewScrollFrame=requestAnimationFrame(advance);
+}
 function renderRoom() {
   const ranked=rankedProfiles();
   const visible = showAll ? ranked : ranked.slice(0,5);
@@ -134,17 +172,19 @@ function renderRoom() {
     const total=ranked.filter(person=>person.plan===plan).length;
     const inside=state.profile.plan===plan;
     const label=inside?'TU PLAN':'PLAN';
-    const count=`${total} ${total===1?'persona':'personas'} dentro`;
-    return `<article class="plan-group${inside?' is-joined':''}"><button class="plan-group-open" type="button" data-plan="${escapeHtml(plan)}" aria-label="Abrir el plan ${escapeHtml(plan)}"><span class="plan-group-art plan-art-${meta.slug}" aria-hidden="true"><b>${meta.symbol}</b><i>${meta.short}</i></span><span class="plan-group-kicker">${label}</span><strong>${escapeHtml(plan)}</strong><small>${count}</small>${inside?'<b class="plan-group-joined">DENTRO</b>':''}<i class="plan-group-arrow" aria-hidden="true">↗</i></button></article>`;
+    const count=`${total} ${total===1?'persona apuntada':'personas apuntadas'}`;
+    return `<article class="plan-group${inside?' is-joined':''}"><button class="plan-group-open" type="button" data-plan="${escapeHtml(plan)}" aria-label="Abrir el plan ${escapeHtml(plan)}"><span class="plan-group-art plan-art-${meta.slug}" aria-hidden="true"><b>${meta.symbol}</b><i>${meta.short}</i></span><span class="plan-group-kicker">${label}</span><strong>${escapeHtml(plan)}</strong><small>${count}</small>${inside?'<b class="plan-group-joined">Apuntado</b>':''}<i class="plan-group-arrow" aria-hidden="true">›</i></button></article>`;
   }).join('');
   renderedGroups=buildCrews(ranked);
   const movingGroups=[...renderedGroups,...renderedGroups];
-  $('#group-track').innerHTML=movingGroups.map((group,index)=>{const plan=planMeta[group.plan]||planMeta.Improvisar;const count=group.id==='my-crew'?group.members.length+1:group.members.length;const duplicate=index>=renderedGroups.length?' aria-hidden="true" tabindex="-1"':'';return `<button class="group-card group-card-${(index%3)+1} plan-art-${plan.slug}" type="button" data-group="${group.id}"${duplicate} aria-label="Abrir crew ${escapeHtml(group.name)}"><span class="group-card-faces">${group.photo?`<img class="group-card-cover" src="${group.photo}" alt="Foto de ${escapeHtml(group.name)}" aria-hidden="true">`:''}${group.members.slice(0,4).map(person=>`<img src="${image(person.photo)}" alt="" aria-hidden="true">`).join('')}</span><span class="group-card-copy"><strong>${escapeHtml(group.name)}</strong><small>${group.plan?`${escapeHtml(group.plan)} · `:''}${count} dentro</small><i>${escapeHtml(group.status)}</i></span><b class="group-card-arrow" aria-hidden="true">↗</b></button>`;}).join('');
+  $('#group-track').innerHTML=movingGroups.map((group,index)=>{const plan=planMeta[group.plan]||planMeta.Improvisar;const count=group.id==='my-crew'?group.members.length+1:group.members.length;const duplicate=index>=renderedGroups.length?' aria-hidden="true" tabindex="-1"':'';return `<button class="group-card group-card-${(index%3)+1} plan-art-${plan.slug}" type="button" data-group="${group.id}"${duplicate} aria-label="Abrir crew ${escapeHtml(group.name)}"><span class="group-card-faces">${group.photo?`<img class="group-card-cover" src="${group.photo}" alt="Foto de ${escapeHtml(group.name)}" aria-hidden="true">`:''}${group.members.slice(0,4).map(person=>`<img src="${image(person.photo)}" alt="" aria-hidden="true">`).join('')}</span><span class="group-card-copy"><strong>${escapeHtml(group.name)}</strong><small>${group.plan?`${escapeHtml(group.plan)} · `:''}${count} personas</small><i>${escapeHtml(group.status)}</i></span><b class="group-card-arrow" aria-hidden="true">›</b></button>`;}).join('');
   $$('[data-person]').forEach(button => button.onclick = () => openPerson(data.profiles.find(person => person.id === button.dataset.person)));
   $$('[data-plan]').forEach(button => button.onclick=()=>openPlan(button.dataset.plan));
   $$('[data-group]').forEach(button=>button.onclick=()=>openGroup(renderedGroups.find(group=>group.id===button.dataset.group)));
+  setupCrewScroller();
 }
 function setScreen(name) {
+  if(['room','crew','messages'].includes(name)&&!state.hasTicket){showToast('Necesitas una entrada verificada para abrir La previa.');name='event';}
   $$('.screen').forEach(screen => screen.classList.toggle('is-active', screen.dataset.screen === name));
   $$('.bottom-nav [data-screen-target]').forEach(button => button.classList.toggle('is-active', button.dataset.screenTarget === name));
   $$('.section-tabs [data-screen-target]').forEach(button => button.classList.toggle('is-active', button.dataset.screenTarget === name));
@@ -168,6 +208,11 @@ function openPerson(person) {
   $('#person-connection').textContent = signals.length?signals.slice(0,2).join(' · '):'También viene a esta fiesta';
   $('#person-bio').textContent = person.bio;
   $('#person-chips').innerHTML = person.tags.map(tag => `<span>${tag}</span>`).join('');
+  const mutual=mutualContacts(person);
+  $('#mutual-contacts').hidden=!mutual.length;
+  $('#mutual-contact-title').textContent=mutual.length===1?'1 contacto en común':`${mutual.length} contactos en común`;
+  $('#mutual-contact-copy').textContent=mutual.map(contact=>contact.name).join(' · ');
+  $('#mutual-contact-faces').innerHTML=mutual.slice(0,4).map(contact=>`<img src="${image(contact.photo)}" alt="${escapeHtml(contact.name)}">`).join('');
   $('#profile-crew-status').replaceChildren();
   const crewTitle=document.createElement('strong');
   const membership=crewFor(person);
@@ -190,6 +235,18 @@ function openPerson(person) {
   $$('[data-action=invite-crew]').forEach(button => button.onclick = () => inviteToMyCrew(person));
   $('[data-action=invite-crew]').disabled=crewRequests.has(person.id);
   $('[data-action=invite-crew]').textContent=crewRequests.has(person.id)?'Invitación pendiente':'Invitar a mi crew';
+  const connectionButton=$('#save-connection-action');
+  const connected=state.circleIds.has(person.id);
+  const pendingConnection=connectionRequests.has(person.id);
+  connectionButton.disabled=connected||pendingConnection;
+  connectionButton.textContent=connected?'✓ En tu círculo':pendingConnection?'Solicitud de conexión enviada':'Guardar conexión';
+  connectionButton.onclick=()=>{
+    if(connected||connectionRequests.has(person.id))return;
+    connectionRequests.add(person.id);
+    connectionButton.disabled=true;
+    connectionButton.textContent='Solicitud de conexión enviada';
+    profileFeedback(`${person.name} entrará en tu círculo únicamente si también acepta.`);
+  };
   setScreen('person');
   $('#person-name').focus({preventScroll:true});
 }
@@ -242,15 +299,15 @@ function openPlan(plan) {
   $('#plan-art-note').textContent=meta.note;
   $('#plan-art-symbol').textContent=meta.symbol;
   $('#plan-title').textContent=plan;
-  $('#plan-count').textContent=`${people.length} dentro`;
+  $('#plan-count').textContent=`${people.length} apuntadas`;
   $('#plan-description').textContent=meta.description;
   $('#plan-tags').innerHTML=meta.tags.map(tag=>`<span>${tag}</span>`).join('');
-  $('#plan-connection').textContent=inside?'Estás dentro de este plan · aquí verás quién se apunta':'Entra para aparecer junto a la gente de este plan';
-  $('#plan-members').innerHTML=people.length?people.map(person=>`<button class="plan-member" data-plan-person="${person.id}" aria-label="Ver perfil de ${person.name}"><img src="${image(person.photo)}" alt="Foto de ${person.name}" referrerpolicy="no-referrer"><span><strong>${person.name}</strong><small>${socialStatus(person)} · ${person.role}</small></span><b aria-hidden="true">↗</b></button>`).join(''):'<p class="plan-empty">Todavía no hay nadie dentro. Puedes ser la primera persona.</p>';
+  $('#plan-connection').textContent=inside?'Te has apuntado a este plan · aquí verás quién se suma':'Apúntate para aparecer junto a la gente de este plan';
+  $('#plan-members').innerHTML=people.length?people.map(person=>`<button class="plan-member" data-plan-person="${person.id}" aria-label="Ver perfil de ${person.name}"><img src="${image(person.photo)}" alt="Foto de ${person.name}" referrerpolicy="no-referrer"><span><strong>${person.name}</strong><small>${socialStatus(person)} · ${person.role}</small></span><b aria-hidden="true">›</b></button>`).join(''):'<p class="plan-empty">Todavía no se ha apuntado nadie. Puedes ser la primera persona.</p>';
   $$('[data-plan-person]').forEach(button=>button.onclick=()=>openPerson(data.profiles.find(person=>person.id===button.dataset.planPerson)));
   const joinButton=$('#join-plan-action');
   joinButton.disabled=inside;
-  joinButton.textContent=inside?'✓ Ya estás dentro':'Entrar en este plan';
+  joinButton.textContent=inside?'✓ Ya te has apuntado':'Apuntarme a este plan';
   joinButton.onclick=()=>{
     if(inside)return;
     state.profile.plan=plan;
@@ -258,7 +315,7 @@ function openPlan(plan) {
     renderOwnProfile();
     renderRoom();
     openPlan(plan);
-    showToast(`Ya estás dentro de ${plan}.`);
+    showToast(`Te has apuntado a ${plan}.`);
   };
   const bringCrewButton=$('#bring-crew-action');
   const hasCrew=state.crew.saved;
@@ -270,7 +327,7 @@ function openPlan(plan) {
     state.crew.plan=plan;
     renderRoom();
     openPlan(plan);
-    showToast(`Tu crew va a ${plan}; tú sigues dentro por tu cuenta.`);
+    showToast(`Tu crew va a ${plan}; tú sigues apuntado por tu cuenta.`);
   };
   setScreen('plan');
 }
@@ -292,7 +349,7 @@ function openGroup(group) {
   $('#group-art-kicker').textContent=group.plan?'PLAN ELEGIDO':'SIN PLAN COMÚN';
   $('#group-art-title').textContent=group.plan||'CREW';
   $('#group-art-symbol').textContent=plan.symbol;
-  $('#group-kicker').textContent=joined?'ESTÁS DENTRO':requested?'SOLICITUD ENVIADA':'GRUPO ABIERTO';
+  $('#group-kicker').textContent=joined?'FORMAS PARTE':requested?'SOLICITUD ENVIADA':'GRUPO ABIERTO';
   $('#group-title').textContent=group.name;
   $('#group-phrase').textContent=`“${group.phrase}”`;
   $('#group-members').innerHTML=members.map((person,index)=>{
@@ -319,7 +376,7 @@ function openGroup(group) {
   requestMode.value=ownCrew?'crew':'solo';
   entryMode.textContent=ownCrew?`Solicitar juntarnos con ${ownCrew.name}`:'Tu solicitud personal';
   joinButton.disabled=joined||requested;
-  joinButton.textContent=group.id==='my-crew'?'✓ Esta es tu crew':joined?'✓ Ya estás dentro':requested?'Solicitud enviada':'Pedir entrar';
+  joinButton.textContent=group.id==='my-crew'?'✓ Esta es tu crew':joined?'✓ Ya formas parte':requested?'Solicitud enviada':'Pedir entrar';
   joinButton.onclick=()=>{
     if(joined||requested)return;
     requestForm.hidden=false;
@@ -347,23 +404,38 @@ function renderGroupChat() {
   $('#chat-log').innerHTML=messages.map(message=>`<p class="${message.mine?'mine':''}"><b>${escapeHtml(message.author)}</b><span>${escapeHtml(message.body)}</span></p>`).join('');
 }
 function openGroupChat(group) {
+  const current=$('.screen.is-active');
+  if(current?.dataset.screen!=='chat')chatReturnScreen=current?.dataset.screen||'room';
   state.activeChat=null;
   state.activeGroupChat=group.id;
   $('#chat-label').textContent='CHAT DEL GRUPO';
   $('#chat-title').textContent=group.name;
+  $('#chat-context').textContent=`${group.members.length} personas · Solo esta noche`;
+  $('#chat-avatar-mark').textContent=group.name.split(/\s+/).slice(0,2).map(word=>word[0]).join('').toUpperCase();
   state.groupChats[group.id] ||= [{author:'Fiesta',body:`Chat abierto para la crew ${group.name}.`,system:true}];
   renderGroupChat();
   closeSheet('group-sheet');
-  openSheet('chat-sheet');
+  setScreen('chat');
 }
 function renderMessages() {
-  $('#messages-list').innerHTML = state.messages.map(message => `<button data-chat="${message.name}"><img src="${image(message.photo)}" alt=""><span><strong>${message.name}</strong><small>${message.copy}</small></span><time>${message.time}</time></button>`).join('');
+  const eventContacts=currentEventCirclePeople();
+  $('#event-circle-list').innerHTML=eventContacts.length?eventContacts.map(person=>`<button type="button" data-circle-chat="${person.id}"><span class="message-avatar"><img src="${image(person.photo)}" alt=""><i aria-hidden="true"></i></span><span><strong>${escapeHtml(person.name)}</strong><small>${escapeHtml(person.room)} · También va</small></span><b>Escribir</b></button>`).join(''):'<p class="messages-empty">Ningún contacto de tu círculo coincide en esta fiesta todavía.</p>';
+  $('#messages-count').textContent=state.messages.length;
+  $('#messages-tab-count').textContent=state.messages.length;
+  $('#messages-list').innerHTML = state.messages.length
+    ? state.messages.map(message => `<button class="${message.unread?'is-unread':''}" data-chat="${escapeHtml(message.name)}"><span class="message-avatar"><img src="${image(message.photo)}" alt="">${message.unread?'<i aria-label="Mensaje nuevo"></i>':''}</span><span class="message-copy"><span class="message-name"><strong>${escapeHtml(message.name)}</strong><em>${escapeHtml(message.context||'Esta noche')}</em></span><small>${escapeHtml(message.copy)}</small></span><span class="message-meta"><time>${escapeHtml(message.time)}</time><b aria-hidden="true">›</b></span></button>`).join('')
+    : '<p class="messages-empty">Todavía no hay conversaciones. Devuelve un saludo para empezar una.</p>';
   $$('[data-chat]').forEach(button => button.onclick = () => openChat(button.dataset.chat));
+  $$('[data-circle-chat]').forEach(button=>button.onclick=()=>openCircleChat(data.profiles.find(person=>person.id===button.dataset.circleChat)));
 }
 function renderNotices() {
   $('#profile-view-count').textContent=state.profileViews;
-  $('#greetings-list').innerHTML=state.receivedGreetings.map(item=>{const person=data.profiles.find(profile=>profile.id===item.personId);const summary=circleSignals(person)[0]||'Está en tu misma onda';return `<button class="activity-item" data-notice-person="${person.id}"><img src="${image(person.photo)}" alt=""><span><strong>${person.name} te ha saludado</strong><small>${summary} · ${item.time}</small></span><b>Ver</b></button>`;}).join('');
+  $('#activity-count').textContent=state.receivedGreetings.length+state.receivedDrinks.length+state.invitations.length;
+  $('#greetings-list').innerHTML=state.receivedGreetings.map(item=>{const person=data.profiles.find(profile=>profile.id===item.personId);const summary=circleSignals(person)[0]||'Está en tu misma onda';const returned=state.greetings.has(person.id);return `<button class="activity-item" data-return-greeting="${person.id}" ${returned?'disabled':''}><img src="${image(person.photo)}" alt=""><span><strong>${person.name} te ha saludado</strong><small>${summary} · ${item.time}</small></span><b>${returned?'Respondido':'Devolver'}</b></button>`;}).join('');
+  $('#drink-invitations-list').innerHTML=state.receivedDrinks.map(item=>{const person=data.profiles.find(profile=>profile.id===item.personId);const label=item.kind==='friendly'?'un chupito amistoso':'un chupito rompehielos';return `<button class="activity-item" data-received-drink="${person.id}"><img src="${image(person.photo)}" alt=""><span><strong>${person.name} te invita a ${label}</strong><small>${escapeHtml(person.room)} · ${item.time}</small></span><b>Ver</b></button>`;}).join('');
   $('#invitations-list').innerHTML=state.invitations.map(item=>{const person=data.profiles.find(profile=>profile.id===item.personId);return `<button class="activity-item" data-notice-person="${person.id}"><img src="${image(person.photo)}" alt=""><span><strong>${person.name} ${item.type==='crew'?'te invita a su crew':'te propone una ronda'}</strong><small>${item.copy}</small></span><b>${item.type==='crew'?'Ver crew':'Ver plan'}</b></button>`;}).join('');
+  $$('[data-return-greeting]').forEach(button=>button.onclick=()=>sendGreeting(data.profiles.find(person=>person.id===button.dataset.returnGreeting)));
+  $$('[data-received-drink]').forEach(button=>button.onclick=()=>{const person=data.profiles.find(profile=>profile.id===button.dataset.receivedDrink);openPerson(person);profileFeedback(`${person.name} te ha enviado una invitación de chupito. Puedes decidirlo cuando os veáis.`);});
   $$('[data-notice-person]').forEach(button=>button.onclick=()=>openPerson(data.profiles.find(person=>person.id===button.dataset.noticePerson)));
 }
 function sendGreeting(person) {
@@ -382,18 +454,92 @@ function sendGreeting(person) {
     profileFeedback(`Saludo simulado para ${person.name}. Pendiente de respuesta.`);
     return;
   }
-  state.messages.unshift({name:person.name,copy:'Te ha devuelto el saludo · Di algo',time:'Ahora',photo:person.photo});
+  state.messages.unshift({name:person.name,copy:'Te ha devuelto el saludo · Di algo',time:'Ahora',context:person.room||'Esta noche',unread:true,photo:person.photo});
   renderMessages();renderNotices();
   profileFeedback(`Has devuelto el saludo a ${person.name}. Ya podéis hablar en la demo.`);
   openChat(person.name);
 }
 function openChat(name) {
+  const current=$('.screen.is-active');
+  if(current?.dataset.screen!=='chat')chatReturnScreen=current?.dataset.screen||'messages';
   state.activeChat = name;
   state.activeGroupChat = null;
-  $('#chat-label').textContent='SALUDO DEVUELTO';
+  const circlePerson=data.profiles.find(person=>person.name===name&&state.circleIds.has(person.id));
+  const sharedEvent=Boolean(circlePerson&&data.currentEventCircleIds.includes(circlePerson.id));
+  if(circlePerson&&!sharedEvent){showToast('El chat se activa cuando los dos vais a la misma fiesta.');return;}
+  $('#chat-label').textContent=circlePerson?'CONTACTO DE TU CÍRCULO':'SALUDO DEVUELTO';
   $('#chat-title').textContent = name;
-  $('#chat-log').innerHTML = `<p><b>${name}</b><span>Te ha devuelto el saludo.</span></p><p class="mine"><b>Tú</b><span>¡Hey! ¿Qué tal va la previa?</span></p>`;
-  openSheet('chat-sheet');
+  const message=state.messages.find(item=>item.name===name);
+  $('#chat-context').textContent=circlePerson?`${circlePerson.room} · Los dos vais a esta fiesta`:`${message?.context||'Esta noche'} · Chat temporal`;
+  $('#chat-avatar-mark').textContent=name.trim().slice(0,2).toUpperCase();
+  $('#chat-log').innerHTML = circlePerson?`<p><b>Fiesta</b><span>Podéis escribiros porque formáis parte del mismo círculo y ambos vais a esta fiesta.</span></p>`:`<p><b>${name}</b><span>Te ha devuelto el saludo.</span></p><p class="mine"><b>Tú</b><span>¡Hey! ¿Qué tal va la previa?</span></p>`;
+  setScreen('chat');
+}
+function openCircleChat(person) {
+  if(!person||!state.circleIds.has(person.id))return;
+  if(!data.currentEventCircleIds.includes(person.id))return showToast('Podréis escribiros cuando coincidáis en una fiesta.');
+  if(!state.messages.some(message=>message.name===person.name))state.messages.unshift({name:person.name,copy:'Contacto de tu círculo · Escribe algo',time:'Ahora',context:person.room,unread:false,photo:person.photo});
+  renderMessages();
+  openChat(person.name);
+}
+function renderUpcomingEvents() {
+  $('#upcoming-event-list').innerHTML=data.upcomingEvents.map(event=>{
+    const [day,month]=event.date.split(' ');
+    return `<button type="button" data-upcoming-event="${event.id}"><time datetime="${event.datetime}"><strong>${day}</strong><small>${month}</small></time><span><strong>${escapeHtml(event.name)}</strong><small>${escapeHtml(event.music)} · ${escapeHtml(event.space)}</small><em>${event.knownCount} de tu círculo van</em></span><b>Ver</b></button>`;
+  }).join('');
+  $$('[data-upcoming-event]').forEach(button=>button.onclick=()=>openUpcomingEvent(data.upcomingEvents.find(event=>event.id===button.dataset.upcomingEvent)));
+}
+function openUpcomingEvent(event) {
+  if(!event)return;
+  const current=$('.screen.is-active');
+  if(current?.dataset.screen!=='upcoming-event')upcomingReturnScreen=current?.dataset.screen||'event';
+  activeUpcomingEvent=event;
+  $('#upcoming-detail-poster').className=`upcoming-detail-poster theme-${event.theme}`;
+  $('#upcoming-detail-date').textContent=event.date;
+  $('#upcoming-detail-poster-name').textContent=event.name;
+  $('#upcoming-detail-title').textContent=event.name;
+  $('#upcoming-detail-meta').textContent=`${event.datetime.split('-').reverse().join('/')} · ${event.time} · ${event.music} · ${event.space}`;
+  $('#upcoming-known-count').textContent=`${event.knownCount} personas de tu círculo y ${event.crewCount} crew${event.crewCount===1?'':'s'} conocidas ya van`;
+  $('#fourvenues-link').href=event.ticketUrl;
+  const interestButton=$('#event-interest-button');
+  interestButton.textContent=state.interestedEvents.has(event.id)?'✓ Te interesa':'Me interesa';
+  interestButton.classList.toggle('is-selected',state.interestedEvents.has(event.id));
+  setScreen('upcoming-event');
+}
+function circlePeople() {
+  return [...state.circleIds].map(id=>data.profiles.find(person=>person.id===id)).filter(Boolean);
+}
+function currentEventCirclePeople() {
+  return circlePeople().filter(person=>data.currentEventCircleIds.includes(person.id));
+}
+function mutualContacts(person) {
+  const contactIds=new Set(person.contactIds||[]);
+  return circlePeople().filter(contact=>contact.id!==person.id&&contactIds.has(contact.id));
+}
+function renderCircle() {
+  const people=circlePeople();
+  $('#circle-count').textContent=`${people.length} conexiones`;
+  $('#circle-list').innerHTML=people.map(person=>{const canChat=data.currentEventCircleIds.includes(person.id);return `<article><button type="button" data-circle-person="${person.id}"><img src="${image(person.photo)}" alt=""><span><strong>${escapeHtml(person.name)}</strong><small>${escapeHtml(circleSignals(person)[0]||'Conexión guardada')}</small></span></button><button type="button" class="circle-chat-action" data-circle-chat="${person.id}" ${canChat?'':'disabled'}>${canChat?'Escribir':'Otro evento'}</button></article>`;}).join('');
+  $$('[data-circle-person]').forEach(button=>button.onclick=()=>openPerson(data.profiles.find(person=>person.id===button.dataset.circlePerson)));
+  $$('[data-circle-chat]').forEach(button=>button.onclick=()=>openCircleChat(data.profiles.find(person=>person.id===button.dataset.circleChat)));
+  $('#intro-history').hidden=!state.introductions.length;
+  $('#intro-history-list').innerHTML=state.introductions.map(item=>`<article><strong>${escapeHtml(item.aName)} + ${escapeHtml(item.bName)}</strong><span>Pendiente de ambas</span><p>${escapeHtml(item.eventName)} · “${escapeHtml(item.message)}”</p></article>`).join('');
+}
+function renderCirclePreview() {
+  const people=circlePeople();
+  $('#circle-preview-count').textContent=`${people.length} ${people.length===1?'conexión':'conexiones'}`;
+  $('#circle-preview-faces').innerHTML=people.slice(0,4).map(person=>`<img src="${image(person.photo)}" alt="${escapeHtml(person.name)}">`).join('');
+}
+function openIntroSheet() {
+  const people=circlePeople();
+  if(people.length<2)return showToast('Necesitas al menos dos conexiones para presentarlas.');
+  const options=people.map(person=>`<option value="${person.id}">${escapeHtml(person.name)}</option>`).join('');
+  $('#intro-person-a').innerHTML=options;
+  $('#intro-person-b').innerHTML=options;
+  $('#intro-person-b').selectedIndex=Math.min(1,people.length-1);
+  $('#intro-event').innerHTML=`<option value="current">MARMarela · Grande · Hoy</option>${data.upcomingEvents.map(event=>`<option value="${event.id}">${escapeHtml(event.name)} · ${escapeHtml(event.date)}</option>`).join('')}`;
+  $('#intro-message').value='';
+  openSheet('intro-sheet');
 }
 const primaryPhoto=()=>state.myPhotos[0]||null;
 const escapeHtml=value=>String(value).replace(/[&<>'"]/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[char]));
@@ -405,12 +551,17 @@ function renderOwnProfile() {
   $('#my-profile-arrival').textContent=socialStatus(profile);
   $('#my-profile-role').textContent=profile.role||'Elige tu papel';
   $('#my-profile-crew').textContent=state.crew.saved?state.crew.name:'Todavía no tienes una';
+  $('#profile-crew-manager-name').textContent=state.crew.saved?state.crew.name:'Todavía no tienes una';
+  $('#profile-crew-manager-copy').textContent=state.crew.saved?(state.crew.phrase||'Edita vuestra crew e invita a más gente.'):'Crea vuestro grupo, ponedle nombre e invita a tu gente.';
+  $('#open-crew-manager').textContent=state.crew.saved?'Editar mi crew':'Crear mi crew';
   $('#my-photo-grid').innerHTML=[0,1,2].map(index=>myPhotos[index]
     ?`<button class="profile-photo-tile" type="button" data-photo-slot="${index}" aria-label="Cambiar foto ${index+1}${index===0?' · portada':''}"><img src="${myPhotos[index]}" alt="Foto ${index+1} de tu perfil"><span>${index===0?'Portada · cambiar':'Cambiar'}</span></button>`
-    :`<button class="profile-photo-tile is-empty" type="button" data-photo-slot="${index}"><span>+</span><small>Añadir foto</small></button>`).join('');
+    :`<button class="profile-photo-tile is-empty${index?' is-secondary':''}" type="button" data-photo-slot="${index}" aria-label="Añadir foto ${index+1}${index===0?' · principal':''}"><span>${index===0?'+':index+1}</span><small>${index===0?'Añade tu foto principal':'Foto opcional'}</small></button>`).join('');
   $$('[data-photo-slot]').forEach(button=>button.onclick=()=>{photoSlot=Number(button.dataset.photoSlot);$('#my-photo-input').click();});
   $('#add-profile-photo').disabled=myPhotos.length>=3;
-  $('#add-profile-photo').textContent=myPhotos.length>=3?'3 fotos listas':'Añadir foto';
+  $('#add-profile-photo').textContent=myPhotos.length>=3?'3 fotos listas':myPhotos.length?'Añadir otra foto':'Elegir fotos';
+  $('#attendance-visibility').checked=state.attendanceVisible;
+  renderCirclePreview();
 }
 function renderProfileForm() {
   const {profile}=state;
@@ -487,7 +638,7 @@ function renderCrewBuilder() {
   const {crew}=state;
   $('#crew-name').value=crew.name;$('#crew-phrase').value=crew.phrase;$('#crew-plan').value=crew.plan||'';
   $('#edit-crew-photo').innerHTML=`${crew.photo?`<img src="${crew.photo}" alt="Foto de grupo">`:'<span class="crew-photo-monogram" aria-hidden="true">✦</span>'}<span class="crew-photo-caption">${crew.photo?'Cambiar foto':'Añadir foto de la crew'}<small>${crew.photo?'Vuestra portada':'Opcional · el resto lo ponéis vosotros'}</small></span><span class="crew-photo-add" aria-hidden="true">+</span>`;
-  $('#crew-status-line').textContent=crew.saved?'Tu crew está en la sala':'Dale nombre a vuestra noche';
+  $('#crew-status-line').textContent=crew.saved?'Tu crew ya está lista':'Dale nombre a vuestra noche';
   $('#save-crew').textContent=crew.saved?'Guardar cambios':'Crear mi crew';
   $('#copy-crew-link').disabled=!crew.saved;
   $('#crew-pending-count').textContent=crewRequests.size?`${crewRequests.size} invitación${crewRequests.size===1?'':'es'} pendiente${crewRequests.size===1?'':'s'} · Se unirán cuando acepten.`:'Invita a alguien para empezar a compartir la noche.';
@@ -507,9 +658,11 @@ function renderCrewBuilder() {
 }
 
 $$('[data-screen-target]').forEach(button => button.onclick = () => setScreen(button.dataset.screenTarget));
+$$('[data-inbox-tab]').forEach(button=>button.onclick=()=>{$$('[data-inbox-tab]').forEach(tab=>tab.classList.toggle('is-active',tab===button));$$('[data-inbox-panel]').forEach(panel=>panel.hidden=panel.dataset.inboxPanel!==button.dataset.inboxTab);});
 $('#show-all').onclick = () => { showAll = !showAll; renderRoom(); };
 $('#edit-profile').onclick = () => setProfileEdit($('#profile-fast-form').hidden);
 $('#add-profile-photo').onclick = () => {photoSlot=null;$('#my-photo-input').click();};
+$('#attendance-visibility').onchange=event=>{state.attendanceVisible=event.target.checked;persistProfile();showToast(state.attendanceVisible?'Tu círculo podrá verte cuando también tenga entrada.':'Tu asistencia seguirá siendo anónima.');};
 $('#my-photo-input').onchange = readMyPhoto;
 $('#cancel-profile-edit').onclick = () => setProfileEdit(false);
 $('#profile-fast-form').onsubmit = event => {
@@ -522,6 +675,36 @@ $('#profile-fast-form').onsubmit = event => {
 };
 $('#person-back').onclick=leavePerson;
 $('#plan-back').onclick=leavePlan;
+$('#chat-back').onclick=()=>setScreen(chatReturnScreen);
+$('#upcoming-event-back').onclick=()=>setScreen(upcomingReturnScreen);
+$('#circle-back').onclick=()=>setScreen('profile');
+$('#open-circle').onclick=()=>{renderCircle();setScreen('circle');};
+$('#open-crew-manager').onclick=()=>{renderCrewBuilder();setScreen('crew');};
+$('#present-people').onclick=openIntroSheet;
+$('#event-interest-button').onclick=()=>{
+  if(!activeUpcomingEvent)return;
+  if(state.interestedEvents.has(activeUpcomingEvent.id))state.interestedEvents.delete(activeUpcomingEvent.id);
+  else state.interestedEvents.add(activeUpcomingEvent.id);
+  persistProfile();
+  openUpcomingEvent(activeUpcomingEvent);
+  showToast(state.interestedEvents.has(activeUpcomingEvent.id)?'Te avisaremos cuando se abra la venta.':'Evento retirado de tus intereses.');
+};
+$('#intro-form').onsubmit=event=>{
+  event.preventDefault();
+  const aId=$('#intro-person-a').value;
+  const bId=$('#intro-person-b').value;
+  if(aId===bId)return showToast('Elige dos personas diferentes.');
+  const a=data.profiles.find(person=>person.id===aId);
+  const b=data.profiles.find(person=>person.id===bId);
+  const eventId=$('#intro-event').value;
+  const selectedEvent=data.upcomingEvents.find(item=>item.id===eventId);
+  const eventName=selectedEvent?.name||'MARMarela · Grande';
+  state.introductions.unshift({aId,bId,aName:a.name,bName:b.name,eventId,eventName,message:$('#intro-message').value.trim(),status:'pending'});
+  persistProfile();
+  closeSheet('intro-sheet');
+  renderCircle();
+  showToast(`Presentación enviada a ${a.name} y ${b.name}. El chat se abrirá si ambos aceptan.`);
+};
 $('#cancel-invitation').onclick=()=>{pendingDrink=null;$('#person-invitation').hidden=true;};
 $('#confirm-invitation').onclick=confirmDrink;
 $('#edit-crew-photo').onclick = () => $('#crew-photo-input').click();
@@ -539,4 +722,5 @@ $('#chat-form').onsubmit = event => { event.preventDefault(); const form = event
 renderRoom();
 renderMessages();
 renderNotices();
+renderUpcomingEvents();
 renderOwnProfile();
