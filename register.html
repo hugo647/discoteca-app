@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#090a09">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Crear perfil · Jaleo</title>
+  <style>
+    :root{color-scheme:dark}*{box-sizing:border-box}body{margin:0;min-height:100svh;background:radial-gradient(circle at 20% 0,#341044,transparent 34%),radial-gradient(circle at 95% 70%,#29330b,transparent 32%),#080908;color:#f4f2ea;font-family:Arial,sans-serif}.register{width:min(100%,520px);margin:auto;padding:32px 24px 48px}.mark{display:inline-flex;width:44px;height:44px;align-items:center;justify-content:center;border:1px solid #caef48;border-radius:50%;color:#caef48;font-size:24px}.eyebrow{margin:30px 0 10px;color:#caef48;font-size:11px;font-weight:800;letter-spacing:.18em}.register h1{margin:0;font-size:clamp(42px,12vw,62px);line-height:.92;letter-spacing:-.06em}.intro{margin:18px 0 26px;color:#b8b9b2;line-height:1.45}.form{padding:22px;border:1px solid #343632;border-radius:18px;background:rgba(18,19,17,.9)}label{display:grid;gap:8px;margin-bottom:16px;color:#c5c6bd;font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase}input{width:100%;height:52px;border:1px solid #454842;border-radius:10px;background:#0d0e0d;color:#fff;padding:0 14px;font-size:16px;outline:none}input:focus{border-color:#caef48;box-shadow:0 0 0 3px rgba(202,239,72,.12)}.check{display:grid;grid-template-columns:20px 1fr;gap:10px;align-items:start;margin:16px 0;color:#aeb0a8;font-size:13px;line-height:1.4;letter-spacing:0;text-transform:none;font-weight:400}.check input{width:18px;height:18px;margin:0;accent-color:#caef48}.check a{color:#caef48}button{width:100%;min-height:52px;border:0;border-radius:10px;background:#caef48;color:#10110e;font-size:13px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;cursor:pointer}.error{margin:0 0 16px;padding:11px 12px;border:1px solid #a45fff;border-radius:9px;background:#2a1938;color:#e3c6ff;font-size:14px;line-height:1.4}.below{color:#777a70;font-size:13px;text-align:center}.below a{color:#caef48}.hidden{display:none}
+  </style>
+</head>
+<body>
+  <main class="register">
+    <span class="mark" aria-hidden="true">✦</span>
+    <p class="eyebrow">Jaleo · nuevo perfil</p>
+    <h1>Tu previa<br>empieza aquí</h1>
+    <p class="intro">Crea tu cuenta para guardar tu perfil entre fiestas. La zona social solo se abrirá cuando tengas una entrada verificada.</p>
+    <form class="form" action="/api/register" method="post">
+      <p class="error hidden" id="register-error" role="alert"></p>
+      <input type="hidden" name="next" id="next">
+      <label>Nombre visible<input name="display_name" maxlength="60" autocomplete="name" required autofocus></label>
+      <label>Usuario<input name="username" maxlength="32" pattern="[a-z0-9][a-z0-9._-]{2,31}" autocomplete="username" required><small>Solo minúsculas, números, punto, guion y guion bajo.</small></label>
+      <label>Contraseña<input name="password" type="password" minlength="10" maxlength="200" autocomplete="new-password" required><small>Como mínimo 10 caracteres.</small></label>
+      <label class="check"><input type="checkbox" name="confirm_adult" required><span>Confirmo que tengo 18 años o más y que la fiesta a la que asistiré permite mi acceso.</span></label>
+      <label class="check"><input type="checkbox" name="accept_terms" required><span>He leído y acepto los <a href="/legal/terminos.html" target="_blank" rel="noopener">Términos de uso</a>.</span></label>
+      <label class="check"><input type="checkbox" name="accept_privacy" required><span>He leído el <a href="/legal/privacidad.html" target="_blank" rel="noopener">Aviso de privacidad</a> y entiendo cómo se tratarán mis datos.</span></label>
+      <button type="submit">Crear mi perfil</button>
+    </form>
+    <p class="below">¿Ya tienes cuenta? <a href="/login.html">Entrar</a> · <a href="/legal/cookies.html">Cookies</a></p>
+  </main>
+  <script>
+    const params=new URLSearchParams(location.search);
+    document.querySelector('#next').value=params.get('next')||'/';
+    const error=params.get('error');
+    if(error){const el=document.querySelector('#register-error');el.textContent=error==='exists'?'Ese usuario ya existe. Elige otro.':'Completa todos los campos y acepta los avisos legales.';el.classList.remove('hidden');}
+  </script>
+</body>
+</html>

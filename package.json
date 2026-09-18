@@ -1,8 +1,15 @@
 {
-  "name": "la-previa-marmarela-demo",
+  "name": "jaleo-app",
   "private": true,
   "type": "module",
+  "scripts": {
+    "dev": "node dev-server.js",
+    "test": "node --test tests/*.test.js"
+  },
   "engines": {
     "node": "24.x"
+  },
+  "dependencies": {
+    "pg": "^8.16.3"
   }
 }

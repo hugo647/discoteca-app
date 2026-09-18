@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#090a09" />
   <meta name="referrer" content="no-referrer" />
-  <title>La Previa · MARMarela</title>
+  <title>Jaleo · Evento demo</title>
   <link rel="stylesheet" href="./styles.css?v=1" />
   <link rel="stylesheet" href="./social-overrides.css?v=6" />
   <link rel="stylesheet" href="./panel.css?v=8" />
@@ -16,8 +16,8 @@
   <main class="mobile-app" id="app">
     <section class="screen is-active" data-screen="room" aria-labelledby="room-title">
       <header class="ticket-header">
-        <div><h1 id="room-title">MARMarela ·<br>Grande</h1><p><b id="attendee-count">184</b> van · <b id="crew-count">36</b> crews</p><span class="ticket-verified">✓ ENTRADA VERIFICADA</span></div>
-        <div class="countdown"><span>EMPIEZA EN</span><strong id="countdown">07:42</strong></div>
+        <div><h1 id="room-title">Jaleo</h1><p><b id="attendee-count">0</b> personas · <b id="crew-count">0</b> crews</p><span class="ticket-verified">SE ABRE CON ENTRADA VERIFICADA</span></div>
+        <div class="countdown"><span>ACCESO</span><strong>+18</strong></div>
       </header>
       <section class="feed-section"><div class="feed-title violet"><h2>Gente que quizá conozcas</h2><span>Coincidencias y afinidad</span></div><div class="profile-mosaic" id="profile-mosaic"></div><button class="more-button" id="show-all">Ver a más gente</button></section>
       <section class="feed-section"><div class="feed-title orange"><h2>También van</h2><span>Últimas personas apuntadas</span></div><div class="arrival-row" id="arrival-row"></div></section>
@@ -27,10 +27,10 @@
 
     <section class="screen" data-screen="event" aria-labelledby="event-title">
       <header class="page-header"><p>ESTA NOCHE</p><h1 id="event-title">El evento</h1><span>Horarios, acceso y próximas fiestas</span></header>
-      <article class="event-card event-hero"><div class="event-poster"><span>GRANDE</span><small>MARMarela</small><b>HOY</b></div><div class="event-card-copy"><p class="eyebrow">MARMarela · GRANDE</p><h2>Viernes de estreno</h2><p>Una noche para bailar, charlar y encontrar plan antes de llegar.</p><div class="event-chips"><span>23:30</span><span>3 salas</span><span>+18</span></div></div></article>
-      <section class="event-facts" aria-label="Datos del evento"><article><span>PUERTAS</span><strong>23:30</strong></article><article><span>ESPACIOS</span><strong>03</strong></article><article><span>CIERRE</span><strong>07:00</strong></article></section>
-      <section class="info-list event-info"><article><i>01</i><div><strong>Muévete por planes</strong><p>Apúntate al que te apetezca y mira quién va antes de llegar.</p></div></article><article><i>02</i><div><strong>Tres ambientes</strong><p>Sala principal, Dome y Terraza con ritmos distintos durante la noche.</p></div></article></section>
-      <section class="notice-section event-access"><div class="panel-section-title"><h2>Tu acceso</h2><span>Para esta noche</span></div><article class="access-card"><div class="fake-qr" aria-label="Código QR de demo"></div><div><strong>QR de tu entrada</strong><p>Muéstralo al llegar. Es personal y no aparece en tu perfil.</p></div></article></section>
+      <article class="event-card event-hero"><div class="event-poster"><span>EVENTO</span><small>Se cargará al conectar la base de datos</small><b>—</b></div><div class="event-card-copy"><p class="eyebrow">TU AGENDA</p><h2>Tu próxima fiesta aparecerá aquí</h2><p>Cuando la discoteca publique un evento podrás ver horarios, acceso y quién va.</p><div class="event-chips"><span>Entrada</span><span>+18</span></div></div></article>
+      <section class="event-facts" aria-label="Datos del evento"><article><span>PUERTAS</span><strong>—</strong></article><article><span>ESPACIOS</span><strong>—</strong></article><article><span>CIERRE</span><strong>—</strong></article></section>
+      <section class="info-list event-info"><article><i>01</i><div><strong>Compra tu entrada</strong><p>La información de cada fiesta llegará desde la discoteca y su enlace oficial.</p></div></article><article><i>02</i><div><strong>La previa se abre después</strong><p>Solo verás personas, planes y crews cuando tengas una entrada verificada.</p></div></article></section>
+      <section class="notice-section event-access"><div class="panel-section-title"><h2>Tu acceso</h2><span>Para tu próxima fiesta</span></div><article class="access-card"><div class="fake-qr" aria-label="El QR aparecerá cuando haya una entrada verificada">—</div><div><strong>Tu QR aparecerá aquí</strong><p>La entrada se verificará desde el evento correspondiente. No se guarda en tu perfil social.</p></div></article></section>
       <section class="notice-section upcoming-events"><div class="panel-section-title"><h2>Próximas fiestas</h2><span>Descubre quién va</span></div><div class="upcoming-event-list" id="upcoming-event-list"></div></section>
     </section>
 
@@ -77,6 +77,7 @@
         <fieldset><legend>1 · ¿Qué plan te representa más?</legend><div class="profile-choice-grid" id="profile-plan-picker"></div></fieldset>
         <fieldset><legend>2 · ¿Te apetece conocer gente?</legend><div class="profile-choice-grid" id="profile-arrival-picker"></div><small>Tu crew se muestra automáticamente cuando perteneces a una.</small></fieldset>
         <fieldset><legend>3 · ¿Qué tipo de persona eres en una fiesta?</legend><div class="profile-choice-grid" id="profile-role-picker"></div></fieldset>
+        <section class="profile-legal-notices" aria-labelledby="profile-legal-title"><h3 id="profile-legal-title">Antes de guardar</h3><label><input type="checkbox" id="profile-privacy-consent" required> He leído y acepto el <a href="/legal/privacidad.html" target="_blank" rel="noopener">Aviso de privacidad</a>.</label><label><input type="checkbox" id="profile-terms-consent" required> Acepto los <a href="/legal/terminos.html" target="_blank" rel="noopener">Términos de uso</a>.</label><p>Podrás retirar estos consentimientos y solicitar tus datos o su eliminación.</p></section>
         <div class="profile-form-actions"><button id="cancel-profile-edit" type="button">Cancelar</button><button type="submit">Guardar cambios</button></div>
       </form>
       <article class="profile-memory"><strong>Tu perfil entre fiestas</strong><p>Guardamos tu perfil y preferencias para entrar rápido por QR. Conservamos solo señales resumidas de coincidencias; se eliminan chats, fotos de previa e invitaciones cuando acaba cada fiesta.</p><label><input id="profile-memory-consent" type="checkbox" checked> Quiero que mi perfil se reutilice en próximas fiestas.</label></article>
@@ -112,7 +113,7 @@
 
     <section class="screen attendee-profile upcoming-event-screen" data-screen="upcoming-event" aria-labelledby="upcoming-detail-title">
       <header class="attendee-nav"><button id="upcoming-event-back" type="button">Volver</button><span>PRÓXIMA FIESTA</span></header>
-      <div class="upcoming-detail-poster" id="upcoming-detail-poster"><span id="upcoming-detail-date"></span><strong id="upcoming-detail-poster-name"></strong><small>MARMarela</small></div>
+      <div class="upcoming-detail-poster" id="upcoming-detail-poster"><span id="upcoming-detail-date"></span><strong id="upcoming-detail-poster-name"></strong><small>Jaleo</small></div>
       <div class="upcoming-detail-body"><p class="eyebrow">PRÓXIMO EVENTO</p><h1 id="upcoming-detail-title"></h1><p id="upcoming-detail-meta"></p><section class="anonymous-proof"><div class="anonymous-faces" aria-hidden="true"><i></i><i></i><i></i><i></i></div><strong id="upcoming-known-count"></strong><p>No mostramos nombres ni asistencia individual. Cada persona controla si quiere hacerse visible después de comprar.</p></section><section class="event-unlock-card"><span>48 H ANTES</span><strong>La previa se abre con una entrada verificada</strong><p>Podrás ver planes, crews y las personas de tu círculo que hayan elegido mostrarse.</p></section><a class="fourvenues-button" id="fourvenues-link" href="https://www.fourvenues.com/" target="_blank" rel="noopener noreferrer">Comprar en Fourvenues</a><button class="event-interest-button" id="event-interest-button" type="button">Me interesa</button><p class="integration-note">La compra y la verificación se completan en Fourvenues.</p></div>
     </section>
 

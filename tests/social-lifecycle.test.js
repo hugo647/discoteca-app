@@ -12,33 +12,35 @@ const data = sandbox.window.FiestaV2Data;
 const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 const app = fs.readFileSync(path.join(root, 'app.js'), 'utf8');
 const login = fs.readFileSync(path.join(root, 'login.html'), 'utf8');
+const register = fs.readFileSync(path.join(root, 'register.html'), 'utf8');
+const terms = fs.readFileSync(path.join(root, 'legal/terminos.html'), 'utf8');
+const legalPrivacy = fs.readFileSync(path.join(root, 'legal/privacidad.html'), 'utf8');
+const accessFlow = fs.readFileSync(path.join(root, 'docs/event-access-flow.md'), 'utf8');
 const middleware = fs.readFileSync(path.join(root, 'middleware.js'), 'utf8');
 const profileStyles = fs.readFileSync(path.join(root, 'profile-photos.css'), 'utf8');
+const privacySchema = fs.readFileSync(path.join(root, 'db/001_privacy_first_schema.sql'), 'utf8');
+const privacyModel = fs.readFileSync(path.join(root, 'docs/data-protection-model.md'), 'utf8');
 const accessMiddleware = (await import(pathToFileURL(path.join(root, 'middleware.js')).href)).default;
 
-test('every upcoming event has an official Fourvenues destination', () => {
-  assert.ok(data.upcomingEvents.length >= 2);
-  for (const event of data.upcomingEvents) {
-    const url = new URL(event.ticketUrl);
-    assert.equal(url.protocol, 'https:');
-    assert.match(url.hostname, /(^|\.)fourvenues\.com$/);
-  }
+test('production client has no seeded events or attendees', () => {
+  assert.equal(data.upcomingEvents.length, 0);
+  assert.equal(data.profiles.length, 0);
+  assert.equal(data.crews.length, 0);
+  assert.equal(data.messages.length, 0);
 });
 
 test('the permanent circle only references existing profiles', () => {
   const profileIds = new Set(data.profiles.map(profile => profile.id));
-  assert.ok(data.defaultCircleIds.length >= 2);
-  for (const id of data.defaultCircleIds) assert.ok(profileIds.has(id));
+  assert.equal(data.defaultCircleIds.length, 0);
+  assert.equal(profileIds.size, 0);
 });
 
 test('circle chat is limited to contacts attending the current event', () => {
   const profileIds = new Set(data.profiles.map(profile => profile.id));
   const circleIds = new Set(data.defaultCircleIds);
-  assert.ok(data.currentEventCircleIds.length >= 1);
-  for (const id of data.currentEventCircleIds) {
-    assert.ok(profileIds.has(id));
-    assert.ok(circleIds.has(id));
-  }
+  assert.equal(data.currentEventCircleIds.length, 0);
+  assert.equal(profileIds.size, 0);
+  assert.equal(circleIds.size, 0);
   assert.match(app, /data\.currentEventCircleIds\.includes\(circlePerson\.id\)/);
   assert.match(app, /Podréis escribiros cuando coincidáis en una fiesta/);
 });
@@ -73,40 +75,46 @@ test('introductions require two different mutual connections', () => {
   assert.match(html, /El chat solo se abrirá si las dos aceptan/);
 });
 
-test('the deployed app is protected on every route by a server session', () => {
+test('dev protects the app and exposes the complete login entry flow', async () => {
   assert.match(login, /action="\/api\/login" method="post"/);
-  assert.match(login, /name="username"/);
-  assert.match(login, /name="password" type="password"/);
-  assert.match(middleware, /pathname === '\/login\.html'/);
+  assert.match(login, /href="\/register\.html"/);
+  assert.match(register, /action="\/api\/register" method="post"/);
   assert.match(middleware, /pathname === '\/api\/login'/);
+  assert.match(middleware, /pathname === '\/api\/register'/);
   assert.match(middleware, /HttpOnly; Secure; SameSite=Lax/);
   assert.match(middleware, /hasValidSession/);
+  const response = await accessMiddleware(new Request('https://la-previa.test/index.html'));
+  assert.equal(response.status, 302);
+  assert.match(response.headers.get('location'), /\/login\.html\?next=%2Findex\.html/);
 });
 
-test('an unauthenticated direct route redirects to login and a valid session unlocks it', async () => {
-  const previousPassword = process.env.ACCESS_PASSWORD;
-  const previousSecret = process.env.ACCESS_SECRET;
-  process.env.ACCESS_PASSWORD = 'demo-password';
-  process.env.ACCESS_SECRET = 'demo-session-secret';
-  try {
-    const blocked = await accessMiddleware(new Request('https://la-previa.test/index.html'));
-    assert.equal(blocked.status, 302);
-    assert.match(blocked.headers.get('location'), /\/login\.html\?next=%2Findex\.html/);
-    const form = new URLSearchParams({ username: 'husuar', password: 'demo-password', next: '/' });
-    const loginResponse = await accessMiddleware(new Request('https://la-previa.test/api/login', {
-      method: 'POST',
-      headers: { 'content-type': 'application/x-www-form-urlencoded' },
-      body: form
-    }));
-    const sessionCookie = loginResponse.headers.get('set-cookie').split(';', 1)[0];
-    const unlocked = await accessMiddleware(new Request('https://la-previa.test/', { headers: { cookie: sessionCookie } }));
-    assert.equal(unlocked, undefined);
-  } finally {
-    if (previousPassword === undefined) delete process.env.ACCESS_PASSWORD;
-    else process.env.ACCESS_PASSWORD = previousPassword;
-    if (previousSecret === undefined) delete process.env.ACCESS_SECRET;
-    else process.env.ACCESS_SECRET = previousSecret;
-  }
+test('registration requires legal acceptance and uses database-backed credentials', () => {
+  assert.match(login, /href="\/register\.html"/);
+  assert.match(register, /action="\/api\/register" method="post"/);
+  assert.match(register, /name="accept_terms" required/);
+  assert.match(register, /name="accept_privacy" required/);
+  assert.match(register, /name="confirm_adult" required/);
+  assert.match(register, /href="\/legal\/terminos\.html"/);
+  assert.match(register, /href="\/legal\/privacidad\.html"/);
+  assert.match(privacySchema, /username text not null unique/);
+  assert.match(privacySchema, /password_hash text not null/);
+  assert.match(terms, /Seguridad y uso responsable/);
+  assert.match(terms, /18 años o más/);
+  assert.match(legalPrivacy, /Qué datos tratamos/);
+  assert.match(legalPrivacy, /Menores y control de edad/);
+});
+
+test('profile creation repeats the legal acceptance at the point of profile creation', () => {
+  assert.match(html, /id="profile-privacy-consent" required/);
+  assert.match(html, /id="profile-terms-consent" required/);
+  assert.match(app, /Lee y acepta los avisos legales para guardar tu perfil/);
+});
+
+test('social room access is based on verified attendance, not profile creation', () => {
+  assert.match(accessFlow, /event_attendance/);
+  assert.match(accessFlow, /ticket_verified_at is not null/);
+  assert.match(accessFlow, /El frontend no decide el acceso/);
+  assert.match(app, /if\(\['room','crew','messages'\]\.includes\(name\)&&!state\.hasTicket\)/);
 });
 
 test('chat send control is compact and crews support native touch scrolling', () => {
@@ -149,4 +157,15 @@ test('interface polish avoids template decoration and repetitive placeholders', 
   assert.match(app, /Elegir fotos/);
   assert.match(profileStyles, /\.plan-group-art::before \{ content: none; \}/);
   assert.match(profileStyles, /font-family: Inter, ui-sans-serif, system-ui, sans-serif/);
+});
+test('privacy-first schema separates consent, visibility and deletion', () => {
+  assert.match(privacySchema, /create table if not exists consent_records/);
+  assert.match(privacySchema, /create table if not exists profile_photos/);
+  assert.match(privacySchema, /storage_key text not null unique/);
+  assert.match(privacySchema, /delete_at timestamptz not null/);
+  assert.match(privacySchema, /create table if not exists privacy_requests/);
+  assert.match(privacySchema, /create table if not exists security_audit_log/);
+  assert.match(privacyModel, /no se almacenan DNI,/);
+  assert.match(privacyModel, /24 y 48 horas/);
+  assert.match(privacyModel, /Evaluación de riesgos/);
 });
