@@ -5,15 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#090a09">
   <meta name="robots" content="noindex, nofollow">
-  <title>Acceso · La Previa</title>
+  <title>Acceso · Jaleo</title>
   <style>
-    :root{color-scheme:dark}*{box-sizing:border-box}body{margin:0;min-height:100svh;display:grid;place-items:center;background:radial-gradient(circle at 20% 0,#341044,transparent 34%),radial-gradient(circle at 95% 70%,#29330b,transparent 32%),#080908;color:#f4f2ea;font-family:Arial,sans-serif}.login{width:min(100%,430px);min-height:100svh;padding:32px 24px;display:flex;flex-direction:column;justify-content:center}.mark{display:inline-flex;width:44px;height:44px;align-items:center;justify-content:center;border:1px solid #caef48;border-radius:50%;color:#caef48;font-size:24px}.eyebrow{margin:30px 0 10px;color:#caef48;font-size:11px;font-weight:800;letter-spacing:.18em}.login h1{margin:0;font-size:clamp(44px,13vw,64px);line-height:.9;letter-spacing:-.06em}.login p{margin:18px 0 28px;color:#b8b9b2;line-height:1.45}.form{padding:22px;border:1px solid #343632;border-radius:18px;background:rgba(18,19,17,.88)}label{display:grid;gap:8px;margin-bottom:16px;color:#c5c6bd;font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase}input{width:100%;height:52px;border:1px solid #454842;border-radius:10px;background:#0d0e0d;color:#fff;padding:0 14px;font-size:16px;outline:none}input:focus{border-color:#caef48;box-shadow:0 0 0 3px rgba(202,239,72,.12)}button{width:100%;min-height:52px;border:0;border-radius:10px;background:#caef48;color:#10110e;font-size:13px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;cursor:pointer}.error{margin:0 0 16px;padding:11px 12px;border:1px solid #a45fff;border-radius:9px;background:#2a1938;color:#e3c6ff;font-size:14px}.note{margin-top:18px!important;font-size:12px;color:#777a70!important}.hidden{display:none}
+    :root{color-scheme:dark}*{box-sizing:border-box}body{margin:0;min-height:100svh;display:grid;place-items:center;background:radial-gradient(circle at 20% 0,#341044,transparent 34%),radial-gradient(circle at 95% 70%,#29330b,transparent 32%),#080908;color:#f4f2ea;font-family:Arial,sans-serif}.login{width:min(100%,430px);min-height:100svh;padding:32px 24px;display:flex;flex-direction:column;justify-content:center}.mark{display:inline-flex;width:44px;height:44px;align-items:center;justify-content:center;border:1px solid #caef48;border-radius:50%;color:#caef48;font-size:24px}.eyebrow{margin:30px 0 10px;color:#caef48;font-size:11px;font-weight:800;letter-spacing:.18em}.login h1{margin:0;font-size:clamp(44px,13vw,64px);line-height:.9;letter-spacing:-.06em}.login p{margin:18px 0 28px;color:#b8b9b2;line-height:1.45}.form{padding:22px;border:1px solid #343632;border-radius:18px;background:rgba(18,19,17,.88)}label{display:grid;gap:8px;margin-bottom:16px;color:#c5c6bd;font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase}input{width:100%;height:52px;border:1px solid #454842;border-radius:10px;background:#0d0e0d;color:#fff;padding:0 14px;font-size:16px;outline:none}input:focus{border-color:#caef48;box-shadow:0 0 0 3px rgba(202,239,72,.12)}button{width:100%;min-height:52px;border:0;border-radius:10px;background:#caef48;color:#10110e;font-size:13px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;cursor:pointer}.error{margin:0 0 16px;padding:11px 12px;border:1px solid #a45fff;border-radius:9px;background:#2a1938;color:#e3c6ff;font-size:14px}.register-link{margin:20px 0 0!important;text-align:center;color:#b8b9b2!important;font-size:14px}.register-link a{color:#caef48}.note{margin-top:12px!important;font-size:12px;color:#777a70!important}.hidden{display:none}
   </style>
 </head>
 <body>
   <main class="login">
     <span class="mark" aria-hidden="true">✦</span>
-    <p class="eyebrow">MARMarela · acceso privado</p>
+    <p class="eyebrow">Jaleo · acceso privado</p>
     <h1>La<br>Previa</h1>
     <p>Entra para ver quién va, organizar planes y hablar con tu círculo.</p>
     <form class="form" action="/api/login" method="post">
@@ -23,7 +23,8 @@
       <label>Contraseña<input name="password" type="password" autocomplete="current-password" required></label>
       <button type="submit">Entrar a la previa</button>
     </form>
-    <p class="note">Acceso solo para invitados.</p>
+    <p class="register-link">¿Es tu primera vez? <a href="/register.html">Crear mi perfil</a></p>
+    <p class="note">Necesitas una cuenta y una entrada verificada para abrir Jaleo.</p>
   </main>
   <script>
     const params=new URLSearchParams(location.search);

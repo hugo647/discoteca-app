@@ -3,7 +3,7 @@ const $ = selector => document.querySelector(selector);
 const $$ = selector => [...document.querySelectorAll(selector)];
 const image = id => `https://images.unsplash.com/${id}?auto=format&fit=crop&w=900&q=85`;
 const profileStorageKey = 'fiesta-v2-profile-v3';
-const defaultProfile = {name:'Hugo',contact:'',song:'Fiebre',plan:'Bailar',arrival:'Conocer gente',role:'Bailo todo'};
+const defaultProfile = {name:'',contact:'',song:'',plan:'',arrival:'',role:''};
 const profileOptions = {
   plan:['Bailar','Charlar','Previa','Improvisar'],
   arrival:['Conocer gente','A mi ritmo'],
@@ -30,16 +30,18 @@ let activePerson = null;
 let activeUpcomingEvent = null;
 let pendingDrink = null;
 let photoSlot = null;
+let activeAccessTransfer = null;
+let activeAccessTransferUrl = '';
 const sentDrinks = new Set();
 const crewRequests = new Set();
 const connectionRequests = new Set();
 let storedProfile = null;
 try { storedProfile = JSON.parse(localStorage.getItem(profileStorageKey) || 'null'); } catch {}
 const savedCircle=Array.isArray(storedProfile?.circle)?storedProfile.circle:data.defaultCircleIds;
-const state = { hasTicket:true, attendanceVisible:Boolean(storedProfile?.attendanceVisible), profileViews:12, greetings:new Set(), messages:[...data.messages], activeChat:null, activeGroupChat:null, joinedGroups:new Set(), groupRequests:new Map(), groupChats:{}, circleIds:new Set(savedCircle), introductions:Array.isArray(storedProfile?.introductions)?storedProfile.introductions:[], interestedEvents:new Set(Array.isArray(storedProfile?.interestedEvents)?storedProfile.interestedEvents:[]), myPhotos:Array.isArray(storedProfile?.photos)?storedProfile.photos.slice(0,3):[], profile:{...defaultProfile,...storedProfile?.profile}, receivedGreetings:[{personId:'lucia',time:'Ahora'},{personId:'dani',time:'8 min'}], receivedDrinks:[{personId:'sara',kind:'friendly',time:'12 min'},{personId:'nico',kind:'icebreaker',time:'18 min'}], invitations:[{personId:'zoe',type:'crew',copy:'Te ha invitado a unirte a Terraza abierta'},{personId:'pau',type:'round',copy:'Ha propuesto una ronda para su crew'}], crew:{name:'',phrase:'',members:[],saved:false,plan:'',photo:null}, crewQuery:'' };
+const state = { hasTicket:false, attendanceVisible:Boolean(storedProfile?.attendanceVisible), profileViews:0, greetings:new Set(), messages:[...data.messages], activeChat:null, activeGroupChat:null, joinedGroups:new Set(), groupRequests:new Map(), groupChats:{}, circleIds:new Set(savedCircle), introductions:Array.isArray(storedProfile?.introductions)?storedProfile.introductions:[], interestedEvents:new Set(Array.isArray(storedProfile?.interestedEvents)?storedProfile.interestedEvents:[]), myPhotos:Array.isArray(storedProfile?.photos)?storedProfile.photos.slice(0,3):[], profile:{...defaultProfile,...storedProfile?.profile}, receivedGreetings:[], receivedDrinks:[], invitations:[], crew:{name:'',phrase:'',members:[],saved:false,plan:'',photo:null}, crewQuery:'', eventAccesses:[] };
 if(!profileOptions.arrival.includes(state.profile.arrival))state.profile.arrival=state.profile.arrival==='Con ganas de conocer gente'?'Conocer gente':'A mi ritmo';
 const encounterMemory = new Map([
-  ['lucia',{times:2,last:'MARMarela en abril',greeted:true}],
+  ['lucia',{times:2,last:'en un evento anterior',greeted:true}],
   ['dani',{times:3,last:'Dome en junio',greeted:true,drink:'amistoso'}],
   ['sara',{times:1,last:'la última fiesta',drink:'rompehielos'}]
 ]);
@@ -65,6 +67,7 @@ function isOpenToAnyone(person) {
   return ['Conocer gente','Con ganas de conocer gente'].includes(person.arrival);
 }
 function crewFor(person) {
+  if(!person)return null;
   const me=person===state.profile||person.isMe;
   if(state.crew.saved&&(me||state.crew.members.includes(person.id)))return {id:'my-crew',...state.crew};
   return data.crews.find(crew=>me?state.joinedGroups.has(crew.id):crew.memberIds.includes(person.id))||null;
@@ -87,7 +90,7 @@ function circleSignals(person) {
   if(memory.times>1) signals.push(`Os cruzasteis en ${memory.times} fiestas`);
   else if(memory.times===1) signals.push(`Coincidisteis en ${memory.last}`);
   if(memory.greeted||state.greetings.has(person.id)) signals.push('Ya os saludasteis');
-  if(memory.drink||[...sentDrinks].some(key=>key.startsWith(`${person.id}:`))) signals.push(memory.drink==='amistoso'?'Hubo un chupito amistoso':'Hubo una invitación de chupitos');
+  if(memory.drink||[...sentDrinks].some(key=>key.startsWith(`${person.id}:`))) signals.push(memory.drink==='amistoso'?'Ya compartisteis un plan':'Hubo una invitación para conoceros');
   if(person.plan===state.profile.plan) signals.push(`Mismo plan: ${person.plan}`);
   if(isCompatible(person)) signals.push(isOpenToAnyone(person)?'Le apetece conocer gente':'Encaja con cómo vienes');
   if(person.role===state.profile.role) signals.push(`También es ${person.role.toLowerCase()}`);
@@ -184,7 +187,7 @@ function renderRoom() {
   setupCrewScroller();
 }
 function setScreen(name) {
-  if(['room','crew','messages'].includes(name)&&!state.hasTicket){showToast('Necesitas una entrada verificada para abrir La previa.');name='event';}
+  if(['room','crew','messages'].includes(name)&&!state.hasTicket){showToast('Necesitas una entrada verificada para abrir Jaleo.');name='event';}
   $$('.screen').forEach(screen => screen.classList.toggle('is-active', screen.dataset.screen === name));
   $$('.bottom-nav [data-screen-target]').forEach(button => button.classList.toggle('is-active', button.dataset.screenTarget === name));
   $$('.section-tabs [data-screen-target]').forEach(button => button.classList.toggle('is-active', button.dataset.screenTarget === name));
@@ -262,10 +265,10 @@ function profileFeedback(message) {
 function prepareDrink(person,kind) {
   if(sentDrinks.has(`${person.id}:${kind}`))return;
   pendingDrink={person,kind};
-  $('#invitation-title').textContent=kind==='friendly'?'Un chupito entre colegas':'Dos chupitos para romper el hielo';
+  $('#invitation-title').textContent=kind==='friendly'?'Un plan entre colegas':'Una propuesta para romper el hielo';
   $('#invitation-description').textContent=kind==='friendly'
     ?`Un detalle para ${person.name}, sin intención de ligar. Demo: solo se simula la invitación; no hay ningún cobro.`
-    :`Uno para cada uno, si a ${person.name} le apetece. 2 chupitos · 6 € de prueba. Demo: no hay cobros ni QR de pago.`;
+    :`Una propuesta para conoceros si a ${person.name} le apetece. Jaleo no gestiona pagos ni consumiciones.`;
   $('#person-feedback').hidden=true;
   $('#person-invitation').hidden=false;
   $('#person-invitation').scrollIntoView({block:'nearest',behavior:'smooth'});
@@ -432,10 +435,10 @@ function renderNotices() {
   $('#profile-view-count').textContent=state.profileViews;
   $('#activity-count').textContent=state.receivedGreetings.length+state.receivedDrinks.length+state.invitations.length;
   $('#greetings-list').innerHTML=state.receivedGreetings.map(item=>{const person=data.profiles.find(profile=>profile.id===item.personId);const summary=circleSignals(person)[0]||'Está en tu misma onda';const returned=state.greetings.has(person.id);return `<button class="activity-item" data-return-greeting="${person.id}" ${returned?'disabled':''}><img src="${image(person.photo)}" alt=""><span><strong>${person.name} te ha saludado</strong><small>${summary} · ${item.time}</small></span><b>${returned?'Respondido':'Devolver'}</b></button>`;}).join('');
-  $('#drink-invitations-list').innerHTML=state.receivedDrinks.map(item=>{const person=data.profiles.find(profile=>profile.id===item.personId);const label=item.kind==='friendly'?'un chupito amistoso':'un chupito rompehielos';return `<button class="activity-item" data-received-drink="${person.id}"><img src="${image(person.photo)}" alt=""><span><strong>${person.name} te invita a ${label}</strong><small>${escapeHtml(person.room)} · ${item.time}</small></span><b>Ver</b></button>`;}).join('');
+  $('#drink-invitations-list').innerHTML=state.receivedDrinks.map(item=>{const person=data.profiles.find(profile=>profile.id===item.personId);const label=item.kind==='friendly'?'un plan entre colegas':'una propuesta para conoceros';return `<button class="activity-item" data-received-drink="${person.id}"><img src="${image(person.photo)}" alt=""><span><strong>${person.name} te propone ${label}</strong><small>${escapeHtml(person.room)} · ${item.time}</small></span><b>Ver</b></button>`;}).join('');
   $('#invitations-list').innerHTML=state.invitations.map(item=>{const person=data.profiles.find(profile=>profile.id===item.personId);return `<button class="activity-item" data-notice-person="${person.id}"><img src="${image(person.photo)}" alt=""><span><strong>${person.name} ${item.type==='crew'?'te invita a su crew':'te propone una ronda'}</strong><small>${item.copy}</small></span><b>${item.type==='crew'?'Ver crew':'Ver plan'}</b></button>`;}).join('');
   $$('[data-return-greeting]').forEach(button=>button.onclick=()=>sendGreeting(data.profiles.find(person=>person.id===button.dataset.returnGreeting)));
-  $$('[data-received-drink]').forEach(button=>button.onclick=()=>{const person=data.profiles.find(profile=>profile.id===button.dataset.receivedDrink);openPerson(person);profileFeedback(`${person.name} te ha enviado una invitación de chupito. Puedes decidirlo cuando os veáis.`);});
+  $$('[data-received-drink]').forEach(button=>button.onclick=()=>{const person=data.profiles.find(profile=>profile.id===button.dataset.receivedDrink);openPerson(person);profileFeedback(`${person.name} te ha enviado una propuesta. Podéis decidirlo cuando os veáis.`);});
   $$('[data-notice-person]').forEach(button=>button.onclick=()=>openPerson(data.profiles.find(person=>person.id===button.dataset.noticePerson)));
 }
 function sendGreeting(person) {
@@ -537,7 +540,7 @@ function openIntroSheet() {
   $('#intro-person-a').innerHTML=options;
   $('#intro-person-b').innerHTML=options;
   $('#intro-person-b').selectedIndex=Math.min(1,people.length-1);
-  $('#intro-event').innerHTML=`<option value="current">MARMarela · Grande · Hoy</option>${data.upcomingEvents.map(event=>`<option value="${event.id}">${escapeHtml(event.name)} · ${escapeHtml(event.date)}</option>`).join('')}`;
+  $('#intro-event').innerHTML=`<option value="current">Jaleo · Evento demo · Hoy</option>${data.upcomingEvents.map(event=>`<option value="${event.id}">${escapeHtml(event.name)} · ${escapeHtml(event.date)}</option>`).join('')}`;
   $('#intro-message').value='';
   openSheet('intro-sheet');
 }
@@ -562,6 +565,83 @@ function renderOwnProfile() {
   $('#add-profile-photo').textContent=myPhotos.length>=3?'3 fotos listas':myPhotos.length?'Añadir otra foto':'Elegir fotos';
   $('#attendance-visibility').checked=state.attendanceVisible;
   renderCirclePreview();
+  renderEventAccesses();
+}
+function accessDate(value) {
+  if(!value)return '';
+  const date=new Date(value);
+  return Number.isNaN(date.valueOf())?'':date.toLocaleDateString('es-ES',{day:'numeric',month:'short'});
+}
+function renderEventAccesses() {
+  const list=$('#event-access-list');
+  const accesses=Array.isArray(state.eventAccesses)?state.eventAccesses:[];
+  if(!accesses.length) {
+    list.innerHTML='<p class="event-access-empty">Cuando vincules una entrada, aparecerá aquí su acceso a Jaleo. Cada entrada se puede enviar a una persona distinta.</p>';
+    return;
+  }
+  list.innerHTML=accesses.map(access=>{
+    const pending=access.status==='transfer_pending';
+    const date=accessDate(access.starts_at);
+    const label=pending?'Transferencia pendiente':'Acceso activo';
+    const detail=[label,date].filter(Boolean).join(' · ');
+    return `<article class="event-access-item${pending?' is-pending':''}"><div><strong>${escapeHtml(access.event_name||'Evento')}</strong><small>${escapeHtml(detail)}</small></div><button type="button" data-event-access-action="${pending?'cancel':'transfer'}" data-event-access-id="${escapeHtml(access.id)}" data-transfer-id="${escapeHtml(access.pending_transfer_id||'')}">${pending?'Cancelar':'Transferir'}</button></article>`;
+  }).join('');
+  $$('[data-event-access-action]').forEach(button=>button.onclick=async()=>{
+    const access=accesses.find(item=>item.id===button.dataset.eventAccessId);
+    if(button.dataset.eventAccessAction==='transfer') return openAccessTransfer(access);
+    const response=await fetch(`/api/event-access-transfers/${encodeURIComponent(button.dataset.transferId)}/cancel`,{method:'POST',credentials:'same-origin'});
+    if(!response.ok)return showToast('No hemos podido recuperar ese acceso.');
+    await loadEventAccesses();showToast('Acceso recuperado.');
+  });
+}
+async function loadEventAccesses() {
+  try {
+    const response=await fetch('/api/event-accesses',{credentials:'same-origin'});
+    if(!response.ok)return;
+    const payload=await response.json();
+    state.eventAccesses=Array.isArray(payload.accesses)?payload.accesses:[];
+    state.hasTicket=state.eventAccesses.some(access=>access.status==='claimed');
+    renderEventAccesses();
+  } catch {}
+}
+function openAccessTransfer(access) {
+  if(!access)return;
+  activeAccessTransfer=access;
+  activeAccessTransferUrl='';
+  $('#access-transfer-title').textContent='Transferir mi Jaleo';
+  $('#access-transfer-copy').textContent=`Vas a dejar de ver ${access.event_name||'esta fiesta'}, sus planes, crews y mensajes. Tu perfil general seguirá siendo tuyo.`;
+  $('#access-transfer-actions').hidden=false;
+  $('#access-transfer-share').hidden=true;
+  openSheet('access-transfer-sheet');
+}
+async function confirmAccessTransfer() {
+  if(!activeAccessTransfer)return;
+  const button=$('#confirm-access-transfer');
+  button.disabled=true;button.textContent='Preparando enlace…';
+  try {
+    const response=await fetch(`/api/event-accesses/${encodeURIComponent(activeAccessTransfer.id)}/transfer`,{method:'POST',credentials:'same-origin'});
+    const payload=await response.json();
+    if(!response.ok)throw new Error(payload.error||'transfer_failed');
+    activeAccessTransferUrl=payload.claimUrl;
+    $('#access-transfer-actions').hidden=true;
+    $('#access-transfer-share').hidden=false;
+    await loadEventAccesses();
+    if(!state.hasTicket)setScreen('event');
+  } catch { showToast('No hemos podido transferir este acceso.'); }
+  finally { button.disabled=false;button.textContent='Transferir acceso'; }
+}
+async function shareAccessTransfer() {
+  if(!activeAccessTransferUrl)return;
+  const share={title:'Tu acceso a Jaleo',text:'Te paso mi acceso a Jaleo para esta fiesta.',url:activeAccessTransferUrl};
+  try {
+    if(navigator.share)await navigator.share(share);
+    else { await navigator.clipboard.writeText(activeAccessTransferUrl);showToast('Enlace copiado.'); }
+  } catch {}
+}
+async function copyAccessTransfer() {
+  if(!activeAccessTransferUrl)return;
+  try { await navigator.clipboard.writeText(activeAccessTransferUrl);showToast('Enlace copiado.'); }
+  catch { showToast('Copia este enlace: '+activeAccessTransferUrl); }
 }
 function renderProfileForm() {
   const {profile}=state;
@@ -668,6 +748,7 @@ $('#cancel-profile-edit').onclick = () => setProfileEdit(false);
 $('#profile-fast-form').onsubmit = event => {
   event.preventDefault();
   const form=event.currentTarget;
+  if(!$('#profile-privacy-consent').checked||!$('#profile-terms-consent').checked){showToast('Lee y acepta los avisos legales para guardar tu perfil.');return;}
   state.profile={...state.profile,name:form.elements.name.value.trim(),contact:form.elements.contact.value.trim(),song:form.elements.song.value.trim(),plan:getProfileDraft('plan'),arrival:getProfileDraft('arrival'),role:getProfileDraft('role')};
   clearProfileDraft();
   persistProfile();
@@ -680,6 +761,9 @@ $('#upcoming-event-back').onclick=()=>setScreen(upcomingReturnScreen);
 $('#circle-back').onclick=()=>setScreen('profile');
 $('#open-circle').onclick=()=>{renderCircle();setScreen('circle');};
 $('#open-crew-manager').onclick=()=>{renderCrewBuilder();setScreen('crew');};
+$('#confirm-access-transfer').onclick=confirmAccessTransfer;
+$('#share-access-transfer').onclick=shareAccessTransfer;
+$('#copy-access-transfer').onclick=copyAccessTransfer;
 $('#present-people').onclick=openIntroSheet;
 $('#event-interest-button').onclick=()=>{
   if(!activeUpcomingEvent)return;
@@ -698,7 +782,7 @@ $('#intro-form').onsubmit=event=>{
   const b=data.profiles.find(person=>person.id===bId);
   const eventId=$('#intro-event').value;
   const selectedEvent=data.upcomingEvents.find(item=>item.id===eventId);
-  const eventName=selectedEvent?.name||'MARMarela · Grande';
+  const eventName=selectedEvent?.name||'Jaleo · Evento demo';
   state.introductions.unshift({aId,bId,aName:a.name,bName:b.name,eventId,eventName,message:$('#intro-message').value.trim(),status:'pending'});
   persistProfile();
   closeSheet('intro-sheet');
@@ -724,3 +808,5 @@ renderMessages();
 renderNotices();
 renderUpcomingEvents();
 renderOwnProfile();
+loadEventAccesses();
+if(!state.hasTicket)setScreen('event');
