@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#090a09">
+  <meta name="referrer" content="no-referrer">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Recibir acceso · Jaleo</title>
+  <style>
+    :root{color-scheme:dark}*{box-sizing:border-box}body{margin:0;min-height:100svh;display:grid;place-items:center;background:radial-gradient(circle at 20% 0,#341044,transparent 34%),radial-gradient(circle at 95% 70%,#29330b,transparent 32%),#080908;color:#f4f2ea;font-family:Arial,sans-serif}.claim{width:min(100%,430px);min-height:100svh;padding:32px 24px;display:flex;flex-direction:column;justify-content:center}.mark{display:inline-flex;width:44px;height:44px;align-items:center;justify-content:center;border:1px solid #caef48;border-radius:50%;color:#caef48;font-size:24px}.eyebrow{margin:30px 0 10px;color:#caef48;font-size:11px;font-weight:800;letter-spacing:.18em}.claim h1{margin:0;font-size:clamp(40px,12vw,58px);line-height:.95;letter-spacing:-.06em}.claim p{margin:18px 0 0;color:#b8b9b2;line-height:1.5}.card{margin-top:25px;padding:22px;border:1px solid #343632;border-radius:18px;background:rgba(18,19,17,.88)}button,.login-link{display:grid;place-items:center;width:100%;min-height:52px;border:0;border-radius:10px;background:#caef48;color:#10110e;font-size:13px;font-weight:900;letter-spacing:.08em;text-decoration:none;text-transform:uppercase;cursor:pointer}.secondary{margin-top:10px;border:1px solid #454842;background:transparent;color:#f4f2ea}.hidden{display:none}.error{color:#e3c6ff!important}
+  </style>
+</head>
+<body>
+  <main class="claim">
+    <span class="mark" aria-hidden="true">✦</span>
+    <p class="eyebrow">JALEO · ACCESO TRANSFERIDO</p>
+    <h1>La previa<br>te espera.</h1>
+    <p>Al aceptar, este acceso pasa a tu cuenta. No modifica la entrada ni el acceso físico al evento.</p>
+    <section class="card">
+      <p id="claim-status">Comprobando tu cuenta…</p>
+      <form id="claim-form" class="hidden"><input type="hidden" name="token" id="claim-token"><button type="submit">Aceptar acceso</button></form>
+      <a id="claim-login" class="login-link hidden" href="/login.html">Entrar o crear cuenta</a>
+      <a class="login-link secondary" href="/">Volver a Jaleo</a>
+    </section>
+  </main>
+  <script>
+    const token=new URLSearchParams(location.search).get('token');
+    const status=document.querySelector('#claim-status');
+    const form=document.querySelector('#claim-form');
+    const login=document.querySelector('#claim-login');
+    const next=`/transfer.html?token=${encodeURIComponent(token||'')}`;
+    if(!token){status.textContent='Este enlace no es válido.';status.classList.add('error');}
+    else fetch('/api/session',{credentials:'same-origin'}).then(response=>response.json()).then(session=>{
+      if(session.authenticated){document.querySelector('#claim-token').value=token;form.classList.remove('hidden');status.textContent='Este acceso está listo para tu cuenta.';}
+      else {login.href=`/login.html?next=${encodeURIComponent(next)}`;login.classList.remove('hidden');status.textContent='Entra o crea tu cuenta para aceptar este acceso.';}
+    }).catch(()=>{status.textContent='No hemos podido comprobar este acceso.';status.classList.add('error');});
+    form.addEventListener('submit',event=>{event.preventDefault();fetch('/api/event-access-transfers/claim',{method:'POST',credentials:'same-origin',body:new FormData(form)}).then(async response=>({ok:response.ok,body:await response.json()})).then(result=>{if(!result.ok)throw new Error();status.textContent='Acceso recibido. Ya puedes entrar en la previa.';form.classList.add('hidden');}).catch(()=>{status.textContent='Este acceso ya no está disponible.';status.classList.add('error');});
+  </script>
+</body>
+</html>

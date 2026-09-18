@@ -19,7 +19,9 @@ const accessFlow = fs.readFileSync(path.join(root, 'docs/event-access-flow.md'),
 const middleware = fs.readFileSync(path.join(root, 'middleware.js'), 'utf8');
 const profileStyles = fs.readFileSync(path.join(root, 'profile-photos.css'), 'utf8');
 const privacySchema = fs.readFileSync(path.join(root, 'db/001_privacy_first_schema.sql'), 'utf8');
+const accessTransferSchema = fs.readFileSync(path.join(root, 'db/003_event_access_transfers.sql'), 'utf8');
 const privacyModel = fs.readFileSync(path.join(root, 'docs/data-protection-model.md'), 'utf8');
+const transferPage = fs.readFileSync(path.join(root, 'transfer.html'), 'utf8');
 const accessMiddleware = (await import(pathToFileURL(path.join(root, 'middleware.js')).href)).default;
 
 test('production client has no seeded events or attendees', () => {
@@ -110,9 +112,9 @@ test('profile creation repeats the legal acceptance at the point of profile crea
   assert.match(app, /Lee y acepta los avisos legales para guardar tu perfil/);
 });
 
-test('social room access is based on verified attendance, not profile creation', () => {
-  assert.match(accessFlow, /event_attendance/);
-  assert.match(accessFlow, /ticket_verified_at is not null/);
+test('social room access is based on a claimed event access, not profile creation', () => {
+  assert.match(accessFlow, /event_accesses/);
+  assert.match(accessFlow, /status = 'claimed'/);
   assert.match(accessFlow, /El frontend no decide el acceso/);
   assert.match(app, /if\(\['room','crew','messages'\]\.includes\(name\)&&!state\.hasTicket\)/);
 });
@@ -168,4 +170,19 @@ test('privacy-first schema separates consent, visibility and deletion', () => {
   assert.match(privacyModel, /no se almacenan DNI,/);
   assert.match(privacyModel, /24 y 48 horas/);
   assert.match(privacyModel, /Evaluación de riesgos/);
+});
+
+test('each ticket can grant one transferable Jaleo access without transferring the physical ticket', () => {
+  assert.match(accessTransferSchema, /create table if not exists event_accesses/);
+  assert.match(accessTransferSchema, /create table if not exists event_access_transfers/);
+  assert.match(accessTransferSchema, /source_ticket_reference_hash text not null/);
+  assert.match(accessTransferSchema, /transfer_token_hash text not null unique/);
+  assert.match(accessTransferSchema, /age_declarations/);
+  assert.match(html, /id="event-access-list"/);
+  assert.match(html, /id="access-transfer-sheet"/);
+  assert.match(app, /navigator\.share/);
+  assert.match(app, /api\/event-accesses/);
+  assert.match(middleware, /api\/event-access-transfers\/claim/);
+  assert.match(transferPage, /Aceptar acceso/);
+  assert.match(accessFlow, /Jaleo no transfiere la entrada física/);
 });
